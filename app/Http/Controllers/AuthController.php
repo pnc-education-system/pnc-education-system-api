@@ -43,8 +43,8 @@ class AuthController extends Controller
 
         $user->update(['last_login_at' => now()]);
 
-        $role = $user->role ? $user->role->name : null;
-        $permissions = $user->role ? $user->role->permissions->pluck('name')->toArray() : [];
+        $role = $user->role ? $user->role->slug : null;
+        $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
 
         return response()->json([
             'access_token' => $accessToken,
@@ -129,8 +129,8 @@ class AuthController extends Controller
                 ], 404);
             }
 
-            $role = $user->role ? $user->role->name : null;
-            $permissions = $user->role ? $user->role->permissions->pluck('name')->toArray() : [];
+            $role = $user->role ? $user->role->slug : null;
+            $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
 
             return response()->json([
                 'user' => $user,

@@ -15,7 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique();             
             $table->string('display_name')->nullable();   
+            $table->string('slug')->unique()->nullable();
             $table->string('group')->nullable();         
+            $table->string('module')->nullable();
             $table->text('description')->nullable();
             $table->timestamps();
         });

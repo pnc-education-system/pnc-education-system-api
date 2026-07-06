@@ -10,6 +10,7 @@ class Role extends Model
     protected $fillable = [
         'name',
         'display_name',
+        'slug',
         'description',
         'is_active',
     ];
@@ -30,7 +31,7 @@ class Role extends Model
         return $this->belongsToMany(Permission::class, 'role_permission');
     }
 
-    public function users(): BelongsToMany
+    public function users()
     {
         return $this->hasMany(User::class);
     }
