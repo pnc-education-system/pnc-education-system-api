@@ -85,6 +85,6 @@ class User extends Authenticatable implements JWTSubject
 
     public function permissions()
     {
-        return $this->role->permissions ?? collect();
+        return $this->role ? $this->role->permissions : collect();
     }
 }
