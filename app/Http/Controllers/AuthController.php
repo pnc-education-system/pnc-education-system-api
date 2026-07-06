@@ -54,6 +54,38 @@ class AuthController extends Controller
         ], 200);
     }
 
+    public function logout(Request $request)
+    {
+        try {
+            $token = JWTAuth::getToken();
+            
+            if (!$token) {
+                return response()->json([
+                    'message' => 'No token provided',
+                ], 401);
+            }
+
+            JWTAuth::invalidate($token);
+            
+            return response()->json([
+                'message' => 'Successfully logged out',
+            ], 200);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json([
+                'message' => 'Invalid token',
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json([
+                'message' => 'Token has expired',
+            ], 401);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to logout',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     private function generateRefreshToken(User $user): string
     {
         return hash('sha256', $user->id . now()->timestamp . random_bytes(32));
