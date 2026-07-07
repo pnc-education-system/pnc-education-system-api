@@ -84,5 +84,17 @@ class User extends Authenticatable implements JWTSubject
     public function importLogs(): HasMany
     {
         return $this->hasMany(ImportLog::class, 'imported_by');
+        return $this->role ? $this->role->permissions : collect();
     }
+
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+    
 }
