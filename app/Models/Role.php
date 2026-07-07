@@ -23,10 +23,6 @@ class Role extends Model
         ];
     }
 
-    // -------------------------------------------------------------------------
-    // Relationships
-    // -------------------------------------------------------------------------
-
     public function permissions(): BelongsToMany
     {
         return $this->belongsToMany(
