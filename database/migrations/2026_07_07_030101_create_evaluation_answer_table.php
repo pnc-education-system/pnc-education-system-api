@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('evaluation_criteria', function (Blueprint $table) {
+        Schema::create('evaluation_answer', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('evaluation_form_id')->constrained()->cascadeOnDelete();
-            $table->string('criteria');
-            $table->text('description')->nullable();
+            $table->foreignId('evaluation_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('question_id')->constrained()->cascadeOnDelete();
+            $table->decimal('score', 5, 2)->nullable();
+            $table->text('comment')->nullable();
             $table->timestamps();
         });
     }
@@ -25,6 +26,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('evaluation_criteria');
+        Schema::dropIfExists('evaluation_answer');
+        
     }
 };

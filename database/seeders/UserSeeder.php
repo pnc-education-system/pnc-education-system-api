@@ -1,27 +1,47 @@
 <?php
-
 namespace Database\Seeders;
 
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $adminRoleId = DB::table('roles')->where('slug', 'admin')->value('id');
+        $adminRole   = Role::where('slug', 'administrator')->firstOrFail();
+        $staffRole   = Role::where('slug', 'education_staff')->firstOrFail();
+        $viewerRole  = Role::where('slug', 'management')->firstOrFail();
 
-        DB::table('users')->updateOrInsert(
-            ['email' => 'admin@pnc.edu'],
+
+        User::firstOrCreate(
+            ['email' => 'admin@pnc.edu.kh'],
             [
-                'role_id'    => $adminRoleId,
-                'name'       => 'Super Admin',
-                'email'      => 'admin@pnc.edu',
-                'password'   => Hash::make('password'),
-                'is_active'  => true,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'role_id'   => $adminRole->id,
+                'name'      => 'System Administrator',
+                'password'  => Hash::make('Admin@123456'),
+                'is_active' => true,
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => 'staff@pnc.edu.kh'],
+            [
+                'role_id'   => $staffRole->id,
+                'name'      => 'Chandy Srin',
+                'password'  => Hash::make('Staff@123456'),
+                'is_active' => true,
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => 'management@pnc.edu.kh'],
+            [
+                'role_id'   => $viewerRole->id,
+                'name'      => 'Sok Seyla',
+                'password'  => Hash::make('Manager@123456'),
+                'is_active' => true,
             ]
         );
     }
