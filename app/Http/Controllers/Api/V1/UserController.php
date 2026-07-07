@@ -18,10 +18,10 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), ['name' => 'required|string|max:255', 'email' => 'required|string|email|max:255|unique:users', 'password' => 'required|string|min:8', 'role_id' => 'nullable|exists:roles,id', 'phone' => 'nullable|string|max:20', 'is_active' => 'boolean']);
+$validator = Validator::make($request->all(), ['name' => 'required|string|max:255', 'email' => 'required|string|email|max:255|unique:users', 'password' => 'required|string|min:8', 'role_id' => 'nullable|exists:roles,id', 'is_active' => 'boolean']);
         if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
 
-        $user = User::create(['name' => $request->name, 'email' => $request->email, 'password' => Hash::make($request->password), 'role_id' => $request->role_id, 'phone' => $request->phone, 'is_active' => $request->is_active ?? true]);
+        $user = User::create(['name' => $request->name, 'email' => $request->email, 'password' => Hash::make($request->password), 'role_id' => $request->role_id, 'is_active' => $request->is_active ?? true]);
         $this->logAudit($user, 'user_created', $request, $user->toArray());
         return response()->json(['status' => 'success', 'message' => 'User created successfully', 'data' => $user->load('role')], 201);
     }
@@ -38,11 +38,11 @@ class UserController extends Controller
         $user = User::find($id);
         if (!$user) return $this->error('User not found', 404);
 
-        $validator = Validator::make($request->all(), ['name' => 'sometimes|required|string|max:255', 'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $id, 'password' => 'sometimes|required|string|min:8', 'role_id' => 'nullable|exists:roles,id', 'phone' => 'nullable|string|max:20', 'is_active' => 'boolean']);
+$validator = Validator::make($request->all(), ['name' => 'sometimes|required|string|max:255', 'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $id, 'password' => 'sometimes|required|string|min:8', 'role_id' => 'nullable|exists:roles,id', 'is_active' => 'boolean']);
         if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
 
         $oldValues = $user->toArray();
-        foreach (['name', 'email', 'role_id', 'phone', 'is_active'] as $field) if ($request->has($field)) $user->$field = $request->$field;
+        foreach (['name', 'email', 'role_id', 'is_active'] as $field) if ($request->has($field)) $user->$field = $request->$field;
         if ($request->has('password')) $user->password = Hash::make($request->password);
         $user->save();
         $this->logAudit($user, 'user_updated', $request, $oldValues, $user->toArray());
