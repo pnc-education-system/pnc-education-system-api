@@ -10,15 +10,13 @@ return new class extends Migration
     {
         Schema::create('import_logs', function (Blueprint $table) {
             $table->id();
-
+            $table->string('file_path');
             $table->string('file_name');
-
-           $table->unsignedBigInteger('imported_by')->nullable();
-
-            $table->integer('total_rows')->default(0);
-            $table->integer('success_rows')->default(0);
-            $table->integer('failed_rows')->default(0);
-
+            $table->integer('total_rows');
+            $table->integer('success_count');
+            $table->integer('error_count');
+            $table->enum('status', ['Pending', 'Processing', 'Completed', 'Failed']);
+            $table->foreignId('imported_by')->constrained('users');
             $table->timestamps();
         });
     }

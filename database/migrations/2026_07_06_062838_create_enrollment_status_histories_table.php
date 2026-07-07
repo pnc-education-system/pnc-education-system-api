@@ -10,19 +10,12 @@ return new class extends Migration
     {
         Schema::create('enrollment_status_histories', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('student_id')
-                ->constrained()
-                ->cascadeOnDelete();
-
+            $table->foreignId('student_id')->constrained('students');
             $table->string('old_status');
             $table->string('new_status');
-
-            $table->unsignedBigInteger('changed_by')->nullable();
-
-            $table->text('remarks')->nullable();
-
-            $table->timestamps();
+            $table->text('note')->nullable();
+            $table->foreignId('changed_by')->constrained('users');
+            $table->timestamp('created_at')->useCurrent();
         });
     }
 

@@ -10,13 +10,10 @@ return new class extends Migration
     {
         Schema::create('import_errors', function (Blueprint $table) {
             $table->id();
-
-           $table->unsignedBigInteger('import_log_id');
-
+            $table->foreignId('import_log_id')->constrained('import_logs');
             $table->integer('row_number');
+            $table->string('field');
             $table->text('error_message');
-
-            $table->timestamps();
         });
     }
 
