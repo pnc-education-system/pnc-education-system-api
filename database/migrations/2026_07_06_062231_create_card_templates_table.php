@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('card_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->text('description');
+            $table->string('name');
+            $table->text('layout_json');
+            $table->boolean('is_default')->default(false);
             $table->timestamps();
         });
     }
