@@ -1,0 +1,40 @@
+<?php
+namespace App\Http\Middleware;
+use Closure;
+use Illuminate\Http\Request;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use Tymon\JWTAuth\Exceptions\TokenExpiredException;
+use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+class PermissionMiddleware
+{
+    public function handle(Request $request, Closure $next, string $permission)
+    {
+        try {
+            $token = JWTAuth::getToken();
+            if (!$token) return $this->error('Authentication required', 401);
+            $user = JWTAuth::user();
+            if (!$user) return $this->error('User not found', 401);
+            if (!$user->role) return $this->error('No role assigned', 403);
+            $permissions = $user->role->permissions->pluck('slug')->toArray();
+            if (!in_array($permission, $permissions)) {
+                return $this->error('Missing required permission', 403, [
+                    'required_permission' => $permission,
+                    'user_permissions' => $permissions,
+                ]);
+            }
+            return $next($request);
+        } catch (TokenExpiredException $e) {
+            return $this->error('Token has expired', 401);
+        } catch (TokenInvalidException $e) {
+            return $this->error('Invalid token', 401);
+        } catch (\Exception $e) {
+            return $this->error('Authentication failed', 401);
+        }
+    }
+    private function error(string $message, int $code, array $errors = [])
+    {
+        $response = ['status' => 'error', 'message' => $message];
+        if (!empty($errors)) $response['errors'] = $errors;
+        return response()->json($response, $code);
+    }
+}

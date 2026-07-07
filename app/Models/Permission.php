@@ -10,16 +10,19 @@ class Permission extends Model
     protected $fillable = [
         'name',
         'display_name',
+        'slug',
         'group',
+        'module',
         'description',
     ];
 
-    // -------------------------------------------------------------------------
-    // Relationships
-    // -------------------------------------------------------------------------
-
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'role_permission');
+        return $this->belongsToMany(
+            Role::class,
+            'role_permission',
+            'permission_id',
+            'role_id'
+        );
     }
 }

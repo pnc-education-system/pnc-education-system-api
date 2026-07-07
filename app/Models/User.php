@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
@@ -21,6 +22,8 @@ class User extends Authenticatable implements JWTSubject
         'password',
         'is_active',
         'last_login_at',
+        'reset_token',
+        'reset_token_expires_at',
     ];
 
     protected $hidden = [
@@ -40,6 +43,16 @@ class User extends Authenticatable implements JWTSubject
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function permissions()
+    {
+        return $this->role ? $this->role->permissions : collect();
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
     }
 
     // -------------------------------------------------------------------------
