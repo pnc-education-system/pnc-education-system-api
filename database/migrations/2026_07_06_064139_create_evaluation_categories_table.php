@@ -12,11 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('evaluation_categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->text('description')->nullable();
-            $table->timestamps();
-        });
+        $table->id();
+
+        $table->foreignId('evaluation_form_id')
+            ->constrained()
+            ->cascadeOnDelete();
+
+        $table->string('name');
+        $table->integer('sort_order')->default(1);
+
+        $table->timestamps();
+    });
     }
 
     /**

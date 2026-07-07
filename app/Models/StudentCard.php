@@ -9,14 +9,19 @@ class StudentCard extends Model
 {
     protected $fillable = [
         'student_id',
-        'card_template_id',
+        'template_id',
+        'card_number',
+        'qr_token',
         'issued_at',
+        'printed_count',
+        'pdf_path',
     ];
 
     protected function casts(): array
     {
         return [
-            'issued_at' => 'date:Y-m-d',
+            'issued_at'     => 'datetime',
+            'printed_count' => 'integer',
         ];
     }
 
@@ -27,6 +32,6 @@ class StudentCard extends Model
 
     public function cardTemplate(): BelongsTo
     {
-        return $this->belongsTo(CardTemplate::class);
+        return $this->belongsTo(CardTemplate::class, 'template_id');
     }
 }

@@ -16,7 +16,7 @@ class SelectionBatch extends Model
 
     public function students(): HasMany
     {
-        return $this->hasMany(Student::class, 'batch_id');
+        return $this->hasMany(Student::class);
     }
 
     public function creator(): BelongsTo

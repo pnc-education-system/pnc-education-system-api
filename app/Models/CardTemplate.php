@@ -8,12 +8,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class CardTemplate extends Model
 {
     protected $fillable = [
-        'title',
-        'description',
+        'name',
+        'layout_json',
+        'is_default',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_default' => 'boolean',
+        ];
+    }
 
     public function studentCards(): HasMany
     {
-        return $this->hasMany(StudentCard::class);
+        return $this->hasMany(StudentCard::class, 'template_id');
     }
 }

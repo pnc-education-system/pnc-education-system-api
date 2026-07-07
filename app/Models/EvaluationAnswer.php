@@ -5,19 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EvaluationScore extends Model
+class EvaluationAnswer extends Model
 {
+    protected $table = 'evaluation_answer';
+
     protected $fillable = [
         'evaluation_id',
-        'evaluation_criteria_id',
+        'question_id',
         'score',
-        'remarks',
+        'comment',
     ];
 
     protected function casts(): array
     {
         return [
-            'score' => 'integer',
+            'score' => 'decimal:2',
         ];
     }
 
@@ -26,8 +28,8 @@ class EvaluationScore extends Model
         return $this->belongsTo(Evaluation::class);
     }
 
-    public function criterion(): BelongsTo
+    public function question(): BelongsTo
     {
-        return $this->belongsTo(EvaluationCriterion::class, 'evaluation_criteria_id');
+        return $this->belongsTo(EvaluationQuestion::class, 'question_id');
     }
 }

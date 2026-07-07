@@ -9,27 +9,37 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Student extends Model
 {
     protected $fillable = [
-        'student_code',
-        'first_name',
-        'last_name',
+        'student_id_no',
+        'full_name',
         'gender',
         'dob',
-        'email',
         'phone',
+        'email',
+        'province',
+        'high_school',
+        'selection_batch_id',
         'enrollment_status',
-        'batch_id',
+        'photo_path',
+        'intake_year',
+        'created_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'dob' => 'date:Y-m-d',
+            'dob'        => 'date:Y-m-d',
+            'intake_year' => 'integer',
         ];
     }
 
-    public function batch(): BelongsTo
+    public function selectionBatch(): BelongsTo
     {
-        return $this->belongsTo(SelectionBatch::class, 'batch_id');
+        return $this->belongsTo(SelectionBatch::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function cards(): HasMany
