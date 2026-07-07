@@ -13,10 +13,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             UserSeeder::class,
-            EvaluationCategorySeeder::class,
-            EvaluationTemplateSeeder::class,
-            CardTemplateSeeder::class,
-            SelectionBatchSeeder::class,
         ]);
     }
 }

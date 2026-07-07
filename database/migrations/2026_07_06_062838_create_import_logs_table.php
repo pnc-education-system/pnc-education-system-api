@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('import_logs', function (Blueprint $table) {
             $table->id();
-            $table->string('file_path');
             $table->string('file_name');
             $table->integer('total_rows');
             $table->integer('success_count');

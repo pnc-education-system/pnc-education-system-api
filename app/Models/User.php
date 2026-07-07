@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -29,6 +30,8 @@ class User extends Authenticatable implements JWTSubject
         'avatar',
         'is_active',
         'last_login_at',
+        'reset_token',
+        'reset_token_expires_at',
     ];
 
     /**
@@ -85,6 +88,26 @@ class User extends Authenticatable implements JWTSubject
 
     public function permissions()
     {
-        return $this->role->permissions ?? collect();
+        return $this->role ? $this->role->permissions : collect();
     }
-}
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
+    }
+
+    public function createdBatches(): HasMany
+    {
+        return $this->hasMany(SelectionBatch::class, 'created_by');
+    }
+
+    public function changedStatusHistories(): HasMany
+    {
+        return $this->hasMany(EnrollmentStatusHistory::class, 'changed_by');
+    }
+
+    public function importLogs(): HasMany
+    {
+        return $this->hasMany(ImportLog::class, 'imported_by');
+    }
+};
