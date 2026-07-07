@@ -5,23 +5,16 @@ use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
-class PermissionMiddleware
+class JwtAuthenticate
 {
-    public function handle(Request $request, Closure $next, string $permission)
+    public function handle(Request $request, Closure $next)
     {
         try {
             $token = JWTAuth::getToken();
             if (!$token) return $this->error('Authentication required', 401);
             $user = JWTAuth::user();
             if (!$user) return $this->error('User not found', 401);
-            if (!$user->role) return $this->error('No role assigned', 403);
-            $permissions = $user->role->permissions->pluck('slug')->toArray();
-            if (!in_array($permission, $permissions)) {
-                return $this->error('Missing required permission', 403, [
-                    'required_permission' => $permission,
-                    'user_permissions' => $permissions,
-                ]);
-            }
+            if (!$user->is_active) return $this->error('Account is inactive', 401);
             return $next($request);
         } catch (TokenExpiredException $e) {
             return $this->error('Token has expired', 401);
