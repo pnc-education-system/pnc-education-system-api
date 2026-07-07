@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('students', function (Blueprint $table) {
+        Schema::create('student_cards', function (Blueprint $table) {
             $table->id();
             $table->foreignId('student_id')->constrained('students');
             $table->foreignId('template_id')->constrained('card_templates');
@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('qr_token')->unique();
             $table->timestamp('issued_at')->nullable();
             $table->integer('printed_count')->default(0);
-            $table->sting('pdf_path')->nullable();
+            $table->string('pdf_path')->nullable();
             $table->timestamps();
         });
     }

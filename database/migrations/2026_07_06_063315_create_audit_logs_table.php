@@ -14,7 +14,9 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
-            $table->string('action');
+            // Keep column name aligned with App\Models\AuditLog::$fillable (uses `event`)
+            $table->string('event');
+
             $table->string('model_type')->nullable();
             $table->unsignedBigInteger('model_id')->nullable();
             $table->string('ip_address', 45)->nullable();

@@ -33,7 +33,7 @@ return new class extends Migration
             $table->string('photo_path')->nullable();
             $table->year('intake_year')->nullable();
 
-            $table->foreignId('created_by')->constrained('users');
+           $table->foreignId('created_by')->constrained('users');
 
             $table->timestamps();
         });
