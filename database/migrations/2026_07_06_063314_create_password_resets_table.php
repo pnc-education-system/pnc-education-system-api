@@ -6,24 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('password_resets', function (Blueprint $table) {
             $table->id();
             $table->string('email')->index();
             $table->string('token');
-            $table->timestamp('expires_at')->nullable();
-            $table->timestamp('used_at')->nullable();
-            $table->timestamps();
+            $table->timestamp('created_at')->nullable();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('password_resets');
