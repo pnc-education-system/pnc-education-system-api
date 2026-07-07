@@ -6,23 +6,32 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('evaluations', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('student_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('evaluation_form_id')->constrained()->cascadeOnDelete();
-            $table->date('evaluation_date')->nullable();
-            $table->timestamps();
-        });
-    }
-
-    /**
-     * Reverse the migrations.
-     */
+        $table->id();
+        $table->foreignId('student_id')
+            ->constrained()
+            ->cascadeOnDelete();
+        $table->foreignId('evaluation_form_id')
+            ->constrained()
+            ->cascadeOnDelete();
+        $table->string('evaluation_period');
+        $table->decimal('total_score', 6, 2)->default(0);
+        $table->enum('status', [
+            'Draft',
+            'Submitted',
+            'Reviewed',
+            'Approved'
+        ])->default('Draft');
+        $table->timestamp('submitted_at')->nullable();
+        $table->foreignId('reviewed_by')
+            ->nullable()
+            ->constrained('users')
+            ->nullOnDelete();
+        $table->timestamps();
+    });
+}
     public function down(): void
     {
         Schema::dropIfExists('evaluations');

@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('evaluation_criteria', function (Blueprint $table) {
+       Schema::create('record_attachments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('evaluation_form_id')->constrained()->cascadeOnDelete();
-            $table->string('criteria');
-            $table->text('description')->nullable();
+            $table->foreignId('student_record_id')->constrained()->cascadeOnDelete();
+            $table->string('file_path');
+            $table->string('file_type')->nullable();
             $table->timestamps();
         });
     }
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('evaluation_criteria');
+        Schema::dropIfExists('record_attachments');
     }
 };
