@@ -85,4 +85,13 @@ public function importLogs(): HasMany
 {
     return $this->hasMany(ImportLog::class, 'imported_by');
 }
+
+public function getJWTIdentifier(): mixed
+{
+    return $this->getKey();
+}
+public function getJWTCustomClaims(): array
+{
+    return [];
+}
 }
