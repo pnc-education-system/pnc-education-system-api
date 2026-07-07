@@ -5,7 +5,8 @@ namespace App\Observers;
 use App\Models\AuditLog;
 use App\Models\Permission;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class PermissionObserver
 {
@@ -13,49 +14,43 @@ class PermissionObserver
         protected Request $request
     ) {}
 
+    protected function getUserId(): ?int
+    {
+        return optional(JWTAuth::user())->id;
+    }
+
+    protected function log(string $event, Permission $permission, ?array $oldValues = null, ?array $newValues = null): void
+    {
+        try {
+            AuditLog::create([
+                'user_id'        => $this->getUserId(),
+                'event'          => $event,
+                'auditable_type' => Permission::class,
+                'auditable_id'   => $permission->id,
+                'old_values'     => $oldValues,
+                'new_values'     => $newValues,
+                'ip_address'     => $this->request->ip(),
+                'user_agent'     => $this->request->userAgent(),
+                'url'            => $this->request->fullUrl(),
+                'method'         => $this->request->method(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Audit log failed: ' . $e->getMessage());
+        }
+    }
+
     public function created(Permission $permission): void
     {
-        AuditLog::create([
-            'user_id'        => Auth::id(),
-            'event'          => 'permission_created',
-            'auditable_type' => Permission::class,
-            'auditable_id'   => $permission->id,
-            'new_values'     => $permission->toArray(),
-            'ip_address'     => $this->request->ip(),
-            'user_agent'     => $this->request->userAgent(),
-            'url'            => $this->request->fullUrl(),
-            'method'         => $this->request->method(),
-        ]);
+        $this->log('permission_created', $permission, null, $permission->toArray());
     }
 
     public function updated(Permission $permission): void
     {
-        AuditLog::create([
-            'user_id'        => Auth::id(),
-            'event'          => 'permission_updated',
-            'auditable_type' => Permission::class,
-            'auditable_id'   => $permission->id,
-            'old_values'     => $permission->getOriginal(),
-            'new_values'     => $permission->getChanges(),
-            'ip_address'     => $this->request->ip(),
-            'user_agent'     => $this->request->userAgent(),
-            'url'            => $this->request->fullUrl(),
-            'method'         => $this->request->method(),
-        ]);
+        $this->log('permission_updated', $permission, $permission->getOriginal(), $permission->getChanges());
     }
 
     public function deleted(Permission $permission): void
     {
-        AuditLog::create([
-            'user_id'        => Auth::id(),
-            'event'          => 'permission_deleted',
-            'auditable_type' => Permission::class,
-            'auditable_id'   => $permission->id,
-            'old_values'     => $permission->toArray(),
-            'ip_address'     => $this->request->ip(),
-            'user_agent'     => $this->request->userAgent(),
-            'url'            => $this->request->fullUrl(),
-            'method'         => $this->request->method(),
-        ]);
+        $this->log('permission_deleted', $permission, $permission->toArray(), null);
     }
 }

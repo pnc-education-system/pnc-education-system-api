@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -42,6 +43,8 @@ class AuthController extends Controller
         $refreshToken = $this->generateRefreshToken($user);
 
         $user->update(['last_login_at' => now()]);
+
+        event(new Login('api', $user, false));
 
         $role = $user->role ? $user->role->name : null;
         $permissions = $user->role ? $user->role->permissions->pluck('name')->toArray() : [];
