@@ -8,31 +8,32 @@ return new class extends Migration
 {
     public function up(): void
     {
+
         Schema::create('students', function (Blueprint $table) {
             $table->id();
-
-            $table->string('student_code')->unique();
-            $table->string('first_name');
-            $table->string('last_name');
-
-            $table->string('gender')->nullable();
+            $table->string('student_id_no')->unique();
+            $table->string('full_name');
+            $table->enum('gender', ['Male', 'Female']);
             $table->date('dob')->nullable();
-
-            $table->string('email')->nullable();
             $table->string('phone')->nullable();
+            $table->string('email')->nullable();
+            $table->string('province')->nullable();
+            $table->string('high_school')->nullable();
+
+            $table->foreignId('selection_batch_id')->constrained('selection_batches');
 
             $table->enum('enrollment_status', [
                 'Pending',
-                'Approved',
+                'Enrolled',
                 'Rejected',
-                'Graduated'
-            ])->default('Pending')->index();
+                'Graduated',
+                'Dropped'
+            ])->default('Pending');
 
-            $table->foreignId('batch_id')
-                ->nullable()
-                ->constrained('selection_batches')
-                ->nullOnDelete()
-                ->index();
+            $table->string('photo_path')->nullable();
+            $table->year('intake_year')->nullable();
+
+            $table->foreignId('created_by')->constrained('users');
 
             $table->timestamps();
         });
