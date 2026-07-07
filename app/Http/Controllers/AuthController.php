@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
@@ -52,6 +53,29 @@ class AuthController extends Controller
             'role' => $role,
             'permissions' => $permissions,
         ], 200);
+    }
+
+    public function logout(Request $request)
+    {
+        try {
+            $token = JWTAuth::getToken();
+
+            if (!$token) {
+                return response()->json([
+                    'message' => 'Token not provided',
+                ], 401);
+            }
+
+            JWTAuth::invalidate($token);
+
+            return response()->json([
+                'message' => 'Logged out successfully',
+            ], 200);
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => 'Could not logout',
+            ], 500);
+        }
     }
 
     private function generateRefreshToken(User $user): string
