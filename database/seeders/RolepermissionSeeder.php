@@ -2,74 +2,40 @@
 
 namespace Database\Seeders;
 
-
-use App\Models\Role;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $permissionDefs = [
-            // Users
-            ['name' => 'Manage Users',        'slug' => 'users.manage',        'module' => 'admin'],
-            ['name' => 'Manage Roles',         'slug' => 'roles.manage',        'module' => 'admin'],
-            ['name' => 'View Audit Logs',      'slug' => 'audit.view',          'module' => 'admin'],
-            ['name' => 'Manage Settings',      'slug' => 'settings.manage',     'module' => 'admin'],
-            // Students
-            ['name' => 'View Students',        'slug' => 'students.view',       'module' => 'students'],
-            ['name' => 'Edit Students',        'slug' => 'students.edit',       'module' => 'students'],
-            ['name' => 'Import Students',      'slug' => 'students.import',     'module' => 'students'],
-            // Enrollment
-            ['name' => 'Manage Enrollment',    'slug' => 'enrollment.manage',   'module' => 'enrollment'],
-            // Cards
-            ['name' => 'Generate ID Cards',    'slug' => 'cards.generate',      'module' => 'cards'],
-            // Records
-            ['name' => 'View Records',         'slug' => 'records.view',        'module' => 'records'],
-            ['name' => 'Manage Records',       'slug' => 'records.manage',      'module' => 'records'],
-            // Evaluation
-            ['name' => 'View Evaluations',     'slug' => 'evaluation.view',     'module' => 'evaluation'],
-            ['name' => 'Manage Evaluations',   'slug' => 'evaluation.manage',   'module' => 'evaluation'],
-            ['name' => 'Submit Evaluation',    'slug' => 'evaluation.submit',   'module' => 'evaluation'],
-            // Reports
-            ['name' => 'View Reports',         'slug' => 'reports.view',        'module' => 'reports'],
-        ];
+        $adminRole   = DB::table('roles')->where('slug', 'admin')->value('id');
+        $teacherRole = DB::table('roles')->where('slug', 'teacher')->value('id');
+        $studentRole = DB::table('roles')->where('slug', 'student')->value('id');
 
-        foreach ($permissionDefs as $def) {
-            Permission::firstOrCreate(['slug' => $def['slug']], $def);
+        $allPermissions     = DB::table('permissions')->pluck('id')->toArray();
+        $teacherPermissions = DB::table('permissions')->whereIn('module', ['Users'])->where('slug', 'like', '%.view')->pluck('id')->toArray();
+        $studentPermissions = DB::table('permissions')->where('slug', 'users.view')->pluck('id')->toArray();
+
+        $records = [];
+
+        // Admin gets all permissions
+        foreach ($allPermissions as $permId) {
+            $records[] = ['role_id' => $adminRole, 'permission_id' => $permId];
         }
 
-        $adminRole = Role::firstOrCreate(
-            ['slug' => 'administrator'],
-            ['name' => 'Administrator', 'description' => 'Full system access']
-        );
+        // Teacher gets view-only on users
+        foreach ($teacherPermissions as $permId) {
+            $records[] = ['role_id' => $teacherRole, 'permission_id' => $permId];
+        }
 
-        $staffRole = Role::firstOrCreate(
-            ['slug' => 'education_staff'],
-            ['name' => 'Education Staff', 'description' => 'Day-to-day operations']
-        );
+        // Student gets view own user only
+        foreach ($studentPermissions as $permId) {
+            $records[] = ['role_id' => $studentRole, 'permission_id' => $permId];
+        }
 
-        $viewerRole = Role::firstOrCreate(
-            ['slug' => 'management'],
-            ['name' => 'Management', 'description' => 'Read-only reporting access']
-        );
-
-        $adminRole->permissions()->sync(Permission::pluck('id'));
-
-
-        $staffPerms = Permission::whereIn('slug', [
-            'students.view', 'students.edit', 'students.import',
-            'enrollment.manage', 'cards.generate',
-            'records.view', 'records.manage',
-            'evaluation.view', 'evaluation.manage', 'evaluation.submit',
-            'reports.view',
-        ])->pluck('id');
-        $staffRole->permissions()->sync($staffPerms);
-
-
-        $viewerRole->permissions()->sync(
-            Permission::whereIn('slug', ['students.view', 'reports.view', 'evaluation.view'])->pluck('id')
-        );
+        foreach ($records as $record) {
+            DB::table('role_permission')->updateOrInsert($record);
+        }
     }
 }
-
