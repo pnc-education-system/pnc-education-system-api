@@ -10,12 +10,10 @@ return new class extends Migration
     {
         Schema::create('selection_batches', function (Blueprint $table) {
             $table->id();
-
+            $table->foreignId('created_by')->constrained('users');
             $table->string('name');
-            $table->text('description')->nullable();
-
-            $table->unsignedBigInteger('created_by')->nullable();
-
+            $table->year('year');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
