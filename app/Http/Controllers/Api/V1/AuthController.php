@@ -152,7 +152,6 @@ class AuthController extends Controller
     {
         DB::table('refresh_tokens')->where('user_id', $user->id)->where('revoked_at', null)->update(['revoked_at' => now()]);
     }
-    
     private function logAudit($user, string $event, Request $request)
     {
         AuditLog::create([
