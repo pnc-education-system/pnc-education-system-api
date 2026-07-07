@@ -13,83 +13,42 @@ class RoleController extends Controller
 {
     public function index(Request $request)
     {
-        $roles = Role::with('permissions')->get();
-        return response()->json($roles, 200);
+        return response()->json(['status' => 'success', 'message' => 'Roles retrieved successfully', 'data' => Role::with('permissions')->get()], 200);
     }
 
     public function show($id)
     {
         $role = Role::with('permissions')->find($id);
-        
-        if (!$role) {
-            return response()->json(['message' => 'Role not found'], 404);
-        }
-
-        return response()->json($role, 200);
+        if (!$role) return $this->error('Role not found', 404);
+        return response()->json(['status' => 'success', 'message' => 'Role retrieved successfully', 'data' => $role], 200);
     }
 
     public function update(Request $request, $id)
     {
         $role = Role::find($id);
-        
-        if (!$role) {
-            return response()->json(['message' => 'Role not found'], 404);
-        }
+        if (!$role) return $this->error('Role not found', 404);
 
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|required|string|max:255',
-            'display_name' => 'sometimes|required|string|max:255',
-            'slug' => 'sometimes|required|string|max:255|unique:roles,slug,' . $id,
-            'description' => 'nullable|string',
-            'is_active' => 'boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $validator = Validator::make($request->all(), ['name' => 'sometimes|required|string|max:255', 'display_name' => 'sometimes|required|string|max:255', 'slug' => 'sometimes|required|string|max:255|unique:roles,slug,' . $id, 'description' => 'nullable|string', 'is_active' => 'boolean']);
+        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
 
         $oldValues = $role->toArray();
-
-        if ($request->has('name')) {
-            $role->name = $request->name;
-        }
-        if ($request->has('display_name')) {
-            $role->display_name = $request->display_name;
-        }
-        if ($request->has('slug')) {
-            $role->slug = $request->slug;
-        }
-        if ($request->has('description')) {
-            $role->description = $request->description;
-        }
-        if ($request->has('is_active')) {
-            $role->is_active = $request->is_active;
-        }
-
+        foreach (['name', 'display_name', 'slug', 'description', 'is_active'] as $field) if ($request->has($field)) $role->$field = $request->$field;
         $role->save();
-
-        AuditLog::create([
-            'user_id' => auth()->id(),
-            'event' => 'role_updated',
-            'auditable_type' => Role::class,
-            'auditable_id' => $role->id,
-            'old_values' => $oldValues,
-            'new_values' => $role->toArray(),
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'url' => $request->url(),
-            'method' => $request->method(),
-        ]);
-
-        return response()->json($role->load('permissions'), 200);
+        $this->logAudit($role, 'role_updated', $request, $oldValues, $role->toArray());
+        return response()->json(['status' => 'success', 'message' => 'Role updated successfully', 'data' => $role->load('permissions')], 200);
     }
 
     public function permissions()
     {
-        $permissions = Permission::all();
-        return response()->json($permissions, 200);
+        return response()->json(['status' => 'success', 'message' => 'Permissions retrieved successfully', 'data' => Permission::all()], 200);
+    }
+
+    private function logAudit($role, string $event, Request $request, array $oldValues = [], array $newValues = [])
+    {
+        AuditLog::create(['user_id' => auth()->id(), 'event' => $event, 'auditable_type' => Role::class, 'auditable_id' => $role->id, 'old_values' => $oldValues, 'new_values' => $newValues ?: $role->toArray(), 'ip_address' => $request->ip(), 'user_agent' => $request->userAgent(), 'url' => $request->url(), 'method' => $request->method()]);
+    }
+    private function error(string $message, int $code, array $errors = [])
+    {
+        return response()->json(['status' => 'error', 'message' => $message] + ($errors ? ['errors' => $errors] : []), $code);
     }
 }

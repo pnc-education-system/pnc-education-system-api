@@ -15,135 +15,44 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $validator = Validator::make($request->all(), ['email' => 'required|email', 'password' => 'required|string']);
+        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
 
         $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials',
-            ], 401);
-        }
-
-        if (!$user->is_active) {
-            return response()->json([
-                'message' => 'Account is inactive',
-            ], 401);
-        }
-
-        $accessToken = JWTAuth::fromUser($user);
-        $refreshToken = $this->generateRefreshToken($user);
+        if (!$user || !Hash::check($request->password, $user->password)) return $this->error('Invalid credentials', 401);
+        if (!$user->is_active) return $this->error('Account is inactive', 401);
 
         $user->update(['last_login_at' => now()]);
-
-        $role = $user->role ? $user->role->slug : null;
-        $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
-
-        AuditLog::create([
-            'user_id' => $user->id,
-            'event' => 'login',
-            'auditable_type' => User::class,
-            'auditable_id' => $user->id,
-            'new_values' => ['last_login_at' => now()],
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'url' => $request->url(),
-            'method' => $request->method(),
-        ]);
+        $this->logAudit($user, 'login', $request);
 
         return response()->json([
-            'access_token' => $accessToken,
-            'refresh_token' => $refreshToken,
-            'role' => $role,
-            'permissions' => $permissions,
+            'status' => 'success',
+            'message' => 'Authenticated successfully',
+            'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'role' => $user->role?->slug],
+            'access_token' => JWTAuth::fromUser($user),
+            'refresh_token' => $this->generateRefreshToken($user),
+            'permissions' => $user->role?->permissions->pluck('slug')->toArray() ?? []
         ], 200);
     }
 
     public function logout(Request $request)
     {
         try {
-            $token = JWTAuth::getToken();
-            
-            if (!$token) {
-                return response()->json([
-                    'message' => 'No token provided',
-                ], 401);
-            }
-
             $user = JWTAuth::user();
-            JWTAuth::invalidate($token);
-
-            if ($user) {
-                AuditLog::create([
-                    'user_id' => $user->id,
-                    'event' => 'logout',
-                    'auditable_type' => User::class,
-                    'auditable_id' => $user->id,
-                    'ip_address' => $request->ip(),
-                    'user_agent' => $request->userAgent(),
-                    'url' => $request->url(),
-                    'method' => $request->method(),
-                ]);
-            }
-            
-            return response()->json([
-                'message' => 'Successfully logged out',
-            ], 200);
-        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            return response()->json([
-                'message' => 'Invalid token',
-            ], 401);
-        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            return response()->json([
-                'message' => 'Token has expired',
-            ], 401);
+            JWTAuth::invalidate(JWTAuth::getToken());
+            if ($user) $this->logAudit($user, 'logout', $request);
+            return response()->json(['status' => 'success', 'message' => 'Successfully logged out'], 200);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to logout',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->error('Failed to logout', 500, ['error' => $e->getMessage()]);
         }
     }
 
     public function refresh(Request $request)
     {
         try {
-            $token = JWTAuth::getToken();
-            
-            if (!$token) {
-                return response()->json([
-                    'message' => 'No token provided',
-                ], 401);
-            }
-
-            $newToken = JWTAuth::refresh($token);
-            
-            return response()->json([
-                'access_token' => $newToken,
-            ], 200);
-        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            return response()->json([
-                'message' => 'Invalid token',
-            ], 401);
-        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            return response()->json([
-                'message' => 'Token has expired',
-            ], 401);
+            return response()->json(['status' => 'success', 'message' => 'Token refreshed successfully', 'access_token' => JWTAuth::refresh(JWTAuth::getToken())], 200);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to refresh token',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->error('Failed to refresh token', 500, ['error' => $e->getMessage()]);
         }
     }
 
@@ -151,113 +60,49 @@ class AuthController extends Controller
     {
         try {
             $user = JWTAuth::user();
-            
-            if (!$user) {
-                return response()->json([
-                    'message' => 'User not found',
-                ], 404);
-            }
-
-            $role = $user->role ? $user->role->slug : null;
-            $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
-
-            return response()->json([
-                'user' => $user,
-                'role' => $role,
-                'permissions' => $permissions,
-            ], 200);
+            if (!$user) return $this->error('User not found', 404);
+            return response()->json(['status' => 'success', 'message' => 'User data retrieved successfully', 'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'role' => $user->role?->slug], 'permissions' => $user->role?->permissions->pluck('slug')->toArray() ?? []], 200);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to get user data',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->error('Failed to get user data', 500, ['error' => $e->getMessage()]);
         }
     }
 
     public function requestReset(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $validator = Validator::make($request->all(), ['email' => 'required|email']);
+        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
 
         $user = User::where('email', $request->email)->first();
+        if (!$user) return response()->json(['status' => 'success', 'message' => 'If the email exists, a reset token has been sent'], 200);
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'If the email exists, a reset token has been sent',
-            ], 200);
-        }
-
-        $resetToken = Str::random(60);
-        $user->update([
-            'reset_token' => $resetToken,
-            'reset_token_expires_at' => now()->addHours(1),
-        ]);
-
-        return response()->json([
-            'message' => 'If the email exists, a reset token has been sent',
-            'reset_token' => $resetToken,
-        ], 200);
+        $token = Str::random(60);
+        $user->update(['reset_token' => $token, 'reset_token_expires_at' => now()->addHours(1)]);
+        return response()->json(['status' => 'success', 'message' => 'If the email exists, a reset token has been sent', 'reset_token' => $token], 200);
     }
 
     public function confirmReset(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'reset_token' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
+        $validator = Validator::make($request->all(), ['email' => 'required|email', 'reset_token' => 'required|string', 'password' => 'required|string|min:8|confirmed']);
+        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $user = User::where('email', $request->email)->where('reset_token', $request->reset_token)->where('reset_token_expires_at', '>', now())->first();
+        if (!$user) return $this->error('Invalid or expired reset token', 400);
 
-        $user = User::where('email', $request->email)
-            ->where('reset_token', $request->reset_token)
-            ->where('reset_token_expires_at', '>', now())
-            ->first();
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'Invalid or expired reset token',
-            ], 400);
-        }
-
-        $user->update([
-            'password' => Hash::make($request->password),
-            'reset_token' => null,
-            'reset_token_expires_at' => null,
-        ]);
-
-        AuditLog::create([
-            'user_id' => $user->id,
-            'event' => 'password_reset',
-            'auditable_type' => User::class,
-            'auditable_id' => $user->id,
-            'new_values' => ['password_changed' => true],
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'url' => $request->url(),
-            'method' => $request->method(),
-        ]);
-
-        return response()->json([
-            'message' => 'Password reset successfully',
-        ], 200);
+        $user->update(['password' => Hash::make($request->password), 'reset_token' => null, 'reset_token_expires_at' => null]);
+        $this->logAudit($user, 'password_reset', $request);
+        return response()->json(['status' => 'success', 'message' => 'Password reset successfully'], 200);
     }
 
     private function generateRefreshToken(User $user): string
     {
         return hash('sha256', $user->id . now()->timestamp . random_bytes(32));
+    }
+    private function logAudit($user, string $event, Request $request)
+    {
+        AuditLog::create(['user_id' => $user->id, 'event' => $event, 'auditable_type' => User::class, 'auditable_id' => $user->id, 'new_values' => $event === 'login' ? ['last_login_at' => now()] : ['password_changed' => true], 'ip_address' => $request->ip(), 'user_agent' => $request->userAgent(), 'url' => $request->url(), 'method' => $request->method()]);
+    }
+    private function error(string $message, int $code, array $errors = [])
+    {
+        return response()->json(['status' => 'error', 'message' => $message] + ($errors ? ['errors' => $errors] : []), $code);
     }
 }
