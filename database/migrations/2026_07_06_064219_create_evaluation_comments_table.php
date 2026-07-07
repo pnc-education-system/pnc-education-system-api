@@ -11,13 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('roles', function (Blueprint $table) {
+       Schema::create('evaluation_comments', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();             // e.g. admin, teacher, student
-            $table->string('display_name')->nullable();   
-            $table->string('slug')->unique()->nullable();
-            $table->text('description')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->foreignId('evaluation_id')->constrained()->cascadeOnDelete();
+            $table->text('comment');
             $table->timestamps();
         });
     }
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('roles');
+        Schema::dropIfExists('evaluation_comments');
     }
 };

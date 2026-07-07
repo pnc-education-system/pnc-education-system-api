@@ -44,8 +44,8 @@ class AuthController extends Controller
 
         $user->update(['last_login_at' => now()]);
 
-        $role = $user->role ? $user->role->name : null;
-        $permissions = $user->role ? $user->role->permissions->pluck('name')->toArray() : [];
+        $role = $user->role ? $user->role->slug : null;
+        $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
 
         return response()->json([
             'access_token' => $accessToken,
@@ -62,18 +62,86 @@ class AuthController extends Controller
 
             if (!$token) {
                 return response()->json([
-                    'message' => 'Token not provided',
+                    'message' => 'No token provided',
                 ], 401);
             }
 
             JWTAuth::invalidate($token);
 
             return response()->json([
-                'message' => 'Logged out successfully',
+                'message' => 'Successfully logged out',
             ], 200);
-        } catch (JWTException $e) {
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
             return response()->json([
-                'message' => 'Could not logout',
+                'message' => 'Invalid token',
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json([
+                'message' => 'Token has expired',
+            ], 401);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to logout',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function refresh(Request $request)
+    {
+        try {
+            $token = JWTAuth::getToken();
+
+            if (!$token) {
+                return response()->json([
+                    'message' => 'No token provided',
+                ], 401);
+            }
+
+            $newToken = JWTAuth::refresh($token);
+
+            return response()->json([
+                'access_token' => $newToken,
+            ], 200);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json([
+                'message' => 'Invalid token',
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json([
+                'message' => 'Token has expired',
+            ], 401);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to refresh token',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function me(Request $request)
+    {
+        try {
+            $user = JWTAuth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found',
+                ], 404);
+            }
+
+            $role = $user->role ? $user->role->slug : null;
+            $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
+
+            return response()->json([
+                'user' => $user,
+                'role' => $role,
+                'permissions' => $permissions,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to get user data',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

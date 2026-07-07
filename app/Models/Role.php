@@ -11,11 +11,28 @@ class Role extends Model
     protected $fillable = [
         'name',
         'display_name',
+        'slug',
         'description',
         'is_active',
     ];
 
-    public function users(): HasMany
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // Relationships
+    // -------------------------------------------------------------------------
+
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'role_permission');
+    }
+
+    public function users()
     {
         return $this->hasMany(User::class);
     }
