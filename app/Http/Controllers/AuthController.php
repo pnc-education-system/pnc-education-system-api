@@ -46,10 +46,14 @@ class AuthController extends Controller
 
         $role = $user->role ? $user->role->slug : null;
         $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
-
         return response()->json([
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
             'role' => $role,
             'permissions' => $permissions,
         ], 200);
