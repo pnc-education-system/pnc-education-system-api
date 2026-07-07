@@ -15,7 +15,6 @@ class SettingSeeder extends Seeder
             ['key' => 'max_upload_mb',  'value' => '10',                   'group' => 'upload'],
             ['key' => 'timezone',       'value' => 'Asia/Phnom_Penh',      'group' => 'general'],
         ];
-
         foreach ($settings as $setting) {
             DB::table('settings')->updateOrInsert(['key' => $setting['key']], array_merge($setting, [
                 'created_at' => now(),

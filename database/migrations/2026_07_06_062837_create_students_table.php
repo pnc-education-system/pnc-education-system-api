@@ -8,7 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-
         Schema::create('students', function (Blueprint $table) {
             $table->id();
             $table->string('student_id_no')->unique();
@@ -38,7 +37,6 @@ return new class extends Migration
             $table->timestamps();
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('students');

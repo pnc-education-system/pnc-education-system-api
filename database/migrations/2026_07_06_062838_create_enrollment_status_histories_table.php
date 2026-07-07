@@ -18,7 +18,6 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('enrollment_status_histories');

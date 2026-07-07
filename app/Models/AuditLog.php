@@ -20,7 +20,6 @@ class AuditLog extends Model
         'url',
         'method',
     ];
-
     protected function casts(): array
     {
         return [
@@ -28,16 +27,10 @@ class AuditLog extends Model
             'new_values' => 'array',
         ];
     }
-
-    // -------------------------------------------------------------------------
-    // Relationships
-    // -------------------------------------------------------------------------
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
-
     public function auditable(): MorphTo
     {
         return $this->morphTo();

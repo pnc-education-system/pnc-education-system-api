@@ -16,7 +16,6 @@ return new class extends Migration
             $table->text('error_message');
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('import_errors');

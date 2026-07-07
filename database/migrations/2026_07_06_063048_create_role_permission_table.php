@@ -20,7 +20,6 @@ return new class extends Migration
             $table->unique(['role_id', 'permission_id']);
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('role_permission');
