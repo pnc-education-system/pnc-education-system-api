@@ -10,13 +10,28 @@ class StudentRecord extends Model
 {
     protected $fillable = [
         'student_id',
-        'record_type',
-        'details',
+        'category',
+        'title',
+        'description',
+        'record_date',
+        'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'record_date' => 'date:Y-m-d',
+        ];
+    }
 
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function attachments(): HasMany

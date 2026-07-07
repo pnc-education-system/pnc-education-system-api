@@ -24,7 +24,6 @@ class UserSeeder extends Seeder
                 'is_active' => true,
             ]
         );
-
         User::firstOrCreate(
             ['email' => 'staff@pnc.edu.kh'],
             [

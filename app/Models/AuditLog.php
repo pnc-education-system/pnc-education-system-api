@@ -10,17 +10,22 @@ class AuditLog extends Model
 {
     protected $fillable = [
         'user_id',
-        'action',
-        'model_type',
-        'model_id',
-        'changes_json',
-        'ip_address'
+        'event',
+        'auditable_type',
+        'auditable_id',
+        'old_values',
+        'new_values',
+        'ip_address',
+        'user_agent',
+        'url',
+        'method',
     ];
 
     protected function casts(): array
     {
         return [
-            'changes_json' => 'array',
+            'old_values' => 'array',
+            'new_values' => 'array',
         ];
     }
 

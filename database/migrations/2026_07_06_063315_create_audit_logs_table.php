@@ -10,19 +10,28 @@ return new class extends Migration
     {
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->id();
+
             $table->foreignId('user_id')
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
-            // Keep column name aligned with App\Models\AuditLog::$fillable (uses `event`)
-            $table->string('event');
 
-            $table->string('model_type')->nullable();
-            $table->unsignedBigInteger('model_id')->nullable();
+            // Matches UserController::logAudit() payload
+            $table->string('event', 60);
+            $table->string('auditable_type')->nullable();
+            $table->unsignedBigInteger('auditable_id')->nullable();
+
+            $table->json('old_values')->nullable();
+            $table->json('new_values')->nullable();
+
             $table->string('ip_address', 45)->nullable();
-            $table->timestamp('created_at')->nullable();
+            $table->string('user_agent')->nullable();
+            $table->string('url', 2048)->nullable();
+            $table->string('method', 20)->nullable();
 
-            $table->index(['model_type', 'model_id']);
+            $table->timestamps(); // includes updated_at
+
+            $table->index(['auditable_type', 'auditable_id']);
         });
     }
 

@@ -11,13 +11,18 @@ class Evaluation extends Model
     protected $fillable = [
         'student_id',
         'evaluation_form_id',
-        'evaluation_date',
+        'evaluation_period',
+        'total_score',
+        'status',
+        'submitted_at',
+        'reviewed_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'evaluation_date' => 'date:Y-m-d',
+            'total_score'  => 'decimal:2',
+            'submitted_at' => 'datetime',
         ];
     }
 
@@ -31,13 +36,13 @@ class Evaluation extends Model
         return $this->belongsTo(EvaluationForm::class);
     }
 
-    public function scores(): HasMany
+    public function answers(): HasMany
     {
-        return $this->hasMany(EvaluationScore::class);
+        return $this->hasMany(EvaluationAnswer::class);
     }
 
-    public function comments(): HasMany
+    public function reviewer(): BelongsTo
     {
-        return $this->hasMany(EvaluationComment::class);
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }
