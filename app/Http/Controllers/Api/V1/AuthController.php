@@ -87,7 +87,7 @@ class AuthController extends Controller
             $newAccessToken = JWTAuth::fromUser($user);
 
             $newRefreshToken = $this->generateRefreshToken($user);
-            
+
             DB::table('refresh_tokens')->where('id', $refreshToken->id)->update(['revoked_at' => now()]);
             $this->logAudit($user, 'token_refresh', $request);
             return response()->json([
@@ -152,6 +152,7 @@ class AuthController extends Controller
     {
         DB::table('refresh_tokens')->where('user_id', $user->id)->where('revoked_at', null)->update(['revoked_at' => now()]);
     }
+    
     private function logAudit($user, string $event, Request $request)
     {
         AuditLog::create([
