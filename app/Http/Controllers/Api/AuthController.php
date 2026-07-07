@@ -1,12 +1,15 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
 use App\Models\User;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Http\Controllers\Controller;
 
 class AuthController extends Controller
 {
@@ -46,6 +49,18 @@ class AuthController extends Controller
         $role = $user->role ? $user->role->slug : null;
         $permissions = $user->role ? $user->role->permissions->pluck('slug')->toArray() : [];
 
+        AuditLog::create([
+            'user_id' => $user->id,
+            'event' => 'login',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'new_values' => ['last_login_at' => now()],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->url(),
+            'method' => $request->method(),
+        ]);
+
         return response()->json([
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
@@ -65,7 +80,21 @@ class AuthController extends Controller
                 ], 401);
             }
 
+            $user = JWTAuth::user();
             JWTAuth::invalidate($token);
+
+            if ($user) {
+                AuditLog::create([
+                    'user_id' => $user->id,
+                    'event' => 'logout',
+                    'auditable_type' => User::class,
+                    'auditable_id' => $user->id,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'url' => $request->url(),
+                    'method' => $request->method(),
+                ]);
+            }
             
             return response()->json([
                 'message' => 'Successfully logged out',
@@ -143,6 +172,88 @@ class AuthController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function requestReset(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'If the email exists, a reset token has been sent',
+            ], 200);
+        }
+
+        $resetToken = Str::random(60);
+        $user->update([
+            'reset_token' => $resetToken,
+            'reset_token_expires_at' => now()->addHours(1),
+        ]);
+
+        return response()->json([
+            'message' => 'If the email exists, a reset token has been sent',
+            'reset_token' => $resetToken,
+        ], 200);
+    }
+
+    public function confirmReset(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'reset_token' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)
+            ->where('reset_token', $request->reset_token)
+            ->where('reset_token_expires_at', '>', now())
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Invalid or expired reset token',
+            ], 400);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password),
+            'reset_token' => null,
+            'reset_token_expires_at' => null,
+        ]);
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'event' => 'password_reset',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'new_values' => ['password_changed' => true],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->url(),
+            'method' => $request->method(),
+        ]);
+
+        return response()->json([
+            'message' => 'Password reset successfully',
+        ], 200);
     }
 
     private function generateRefreshToken(User $user): string

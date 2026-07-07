@@ -1,11 +1,13 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Controller;
 
 class RoleController extends Controller
 {
@@ -49,6 +51,8 @@ class RoleController extends Controller
             ], 422);
         }
 
+        $oldValues = $role->toArray();
+
         if ($request->has('name')) {
             $role->name = $request->name;
         }
@@ -66,6 +70,19 @@ class RoleController extends Controller
         }
 
         $role->save();
+
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'event' => 'role_updated',
+            'auditable_type' => Role::class,
+            'auditable_id' => $role->id,
+            'old_values' => $oldValues,
+            'new_values' => $role->toArray(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->url(),
+            'method' => $request->method(),
+        ]);
 
         return response()->json($role->load('permissions'), 200);
     }

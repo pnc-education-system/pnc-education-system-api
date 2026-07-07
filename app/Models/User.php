@@ -30,6 +30,8 @@ class User extends Authenticatable implements JWTSubject
         'avatar',
         'is_active',
         'last_login_at',
+        'reset_token',
+        'reset_token_expires_at',
     ];
 
     /**
@@ -66,7 +68,6 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(Role::class);
     }
 
-<<<<<<< HEAD
     // -------------------------------------------------------------------------
     // JWTSubject Implementation
     // -------------------------------------------------------------------------
@@ -89,25 +90,24 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->role ? $this->role->permissions : collect();
     }
-=======
+
     public function auditLogs(): HasMany
-{
-    return $this->hasMany(AuditLog::class);
-}
+    {
+        return $this->hasMany(AuditLog::class);
+    }
 
-public function createdBatches(): HasMany
-{
-    return $this->hasMany(SelectionBatch::class, 'created_by');
-}
+    public function createdBatches(): HasMany
+    {
+        return $this->hasMany(SelectionBatch::class, 'created_by');
+    }
 
-public function changedStatusHistories(): HasMany
-{
-    return $this->hasMany(EnrollmentStatusHistory::class, 'changed_by');
-}
+    public function changedStatusHistories(): HasMany
+    {
+        return $this->hasMany(EnrollmentStatusHistory::class, 'changed_by');
+    }
 
-public function importLogs(): HasMany
-{
-    return $this->hasMany(ImportLog::class, 'imported_by');
-}
->>>>>>> d603d0eadf04cfc7c96e9f15f4508a0fa727f36a
-}
+    public function importLogs(): HasMany
+    {
+        return $this->hasMany(ImportLog::class, 'imported_by');
+    }
+};

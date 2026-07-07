@@ -1,9 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\RoleController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\RoleController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,6 +16,8 @@ Route::prefix('v1')->group(function () {
     // ── Public ────────────────────────────────────────────────────────────
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
+        Route::post('password/reset', [AuthController::class, 'requestReset']);
+        Route::post('password/reset/confirm', [AuthController::class, 'confirmReset']);
     });
 
     // ── Protected ─────────────────────────────────────────────────────────

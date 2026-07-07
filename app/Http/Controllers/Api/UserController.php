@@ -1,11 +1,13 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
 use App\Models\User;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Controller;
 
 class UserController extends Controller
 {
@@ -40,6 +42,18 @@ class UserController extends Controller
             'role_id' => $request->role_id,
             'phone' => $request->phone,
             'is_active' => $request->is_active ?? true,
+        ]);
+
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'event' => 'user_created',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'new_values' => $user->toArray(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->url(),
+            'method' => $request->method(),
         ]);
 
         return response()->json($user->load('role'), 201);
@@ -80,6 +94,8 @@ class UserController extends Controller
             ], 422);
         }
 
+        $oldValues = $user->toArray();
+
         if ($request->has('name')) {
             $user->name = $request->name;
         }
@@ -101,6 +117,19 @@ class UserController extends Controller
 
         $user->save();
 
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'event' => 'user_updated',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'old_values' => $oldValues,
+            'new_values' => $user->toArray(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->url(),
+            'method' => $request->method(),
+        ]);
+
         return response()->json($user->load('role'), 200);
     }
 
@@ -112,7 +141,20 @@ class UserController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
+        $userData = $user->toArray();
         $user->delete();
+
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'event' => 'user_deleted',
+            'auditable_type' => User::class,
+            'auditable_id' => $id,
+            'old_values' => $userData,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'url' => request()->url(),
+            'method' => request()->method(),
+        ]);
 
         return response()->json(['message' => 'User deleted successfully'], 200);
     }
