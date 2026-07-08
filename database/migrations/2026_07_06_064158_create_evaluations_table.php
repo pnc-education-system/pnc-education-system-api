@@ -31,7 +31,7 @@ return new class extends Migration
             ->nullOnDelete();
         $table->timestamps();
     });
-}
+    }
     public function down(): void
     {
         Schema::dropIfExists('evaluations');

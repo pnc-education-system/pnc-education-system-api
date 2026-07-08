@@ -14,10 +14,8 @@ class EvaluationTemplateSeeder extends Seeder
             ['name' => 'Young Stars Self-Assessment'],
             ['description' => 'Standard self-evaluation based on the UK Young Stars model.', 'is_active' => true]
         );
-
         if ($template->questions()->count() === 0) {
             $catMap = EvaluationCategory::pluck('id', 'slug');
-
             $questions = [
                 ['category' => 'communication',         'text' => 'I express my ideas clearly in meetings and conversations.'],
                 ['category' => 'communication',         'text' => 'I listen actively and ask good questions.'],
@@ -34,7 +32,6 @@ class EvaluationTemplateSeeder extends Seeder
                 ['category' => 'professional_behavior', 'text' => 'I am punctual, well-presented, and professional.'],
                 ['category' => 'professional_behavior', 'text' => 'I communicate respectfully with all staff and peers.'],
             ];
-
             foreach ($questions as $i => $q) {
                 $template->questions()->create([
                     'category_id'   => $catMap[$q['category']],

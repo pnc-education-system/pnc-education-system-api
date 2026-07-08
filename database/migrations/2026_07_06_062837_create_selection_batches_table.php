@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('selection_batches', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->text('description')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->year('year');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

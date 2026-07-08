@@ -8,17 +8,30 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class EvaluationForm extends Model
 {
     protected $fillable = [
-        'title',
+        'name',
         'description',
+        'is_active',
     ];
 
-    public function criteria(): HasMany
+    protected function casts(): array
     {
-        return $this->hasMany(EvaluationCriterion::class);
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
+    public function categories(): HasMany
+    {
+        return $this->hasMany(EvaluationCategory::class);
     }
 
     public function evaluations(): HasMany
     {
         return $this->hasMany(Evaluation::class);
+    }
+
+    public function questions(): HasMany
+    {
+        return $this->hasMany(EvaluationQuestion::class, 'template_id');
     }
 }

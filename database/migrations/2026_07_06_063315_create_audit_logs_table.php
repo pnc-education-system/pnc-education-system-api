@@ -14,21 +14,19 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
-            $table->string('event');
+            $table->string('event', 60);
             $table->string('auditable_type')->nullable();
             $table->unsignedBigInteger('auditable_id')->nullable();
             $table->json('old_values')->nullable();
             $table->json('new_values')->nullable();
             $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
-            $table->string('url')->nullable();
-            $table->string('method')->nullable();
+            $table->string('user_agent')->nullable();
+            $table->string('url', 2048)->nullable();
+            $table->string('method', 20)->nullable();
             $table->timestamps();
-
             $table->index(['auditable_type', 'auditable_id']);
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('audit_logs');

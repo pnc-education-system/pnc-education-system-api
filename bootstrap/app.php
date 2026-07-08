@@ -16,7 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'jwt.auth' => \App\Http\Middleware\JwtAuthenticate::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
+            'api.error.envelope' => \App\Http\Middleware\ApiErrorEnvelopeMiddleware::class,
         ]);
+        
+        $middleware->appendToGroup('api', [\App\Http\Middleware\ApiErrorEnvelopeMiddleware::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

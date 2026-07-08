@@ -19,13 +19,10 @@ return new class extends Migration
             $table->string('password');
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_login_at')->nullable();
-            $table->string('reset_token')->nullable();
-            $table->timestamp('reset_token_expires_at')->nullable();
-            $table->rememberToken();
+            $table->softDeletes();
             $table->timestamps();
         });
     }
-
     public function down(): void
     {
         Schema::dropIfExists('users');
