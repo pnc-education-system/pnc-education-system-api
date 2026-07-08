@@ -16,7 +16,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), ['email' => 'required|email', 'password' => 'required|string']);
-        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
+        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors()->toArray());
         $user = User::where('email', $request->email)->first();
         if (!$user || !Hash::check($request->password, $user->password)) return $this->error('Invalid credentials', 401);
         if (!$user->is_active) return $this->error('Account is inactive', 401);
@@ -59,7 +59,7 @@ class AuthController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), ['refresh_token' => 'required|string']);
-            if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
+            if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors()->toArray());
             $refreshToken = DB::table('refresh_tokens')->where('token', $request->refresh_token)->where('revoked_at', null)->where('expires_at', '>', now())->first();
             if (!$refreshToken) return $this->error('Invalid or expired refresh token', 401);
             $user = User::find($refreshToken->user_id);
@@ -97,7 +97,7 @@ class AuthController extends Controller
     public function requestReset(Request $request)
     {
         $validator = Validator::make($request->all(), ['email' => 'required|email']);
-        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
+        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors()->toArray());
         $user = User::where('email', $request->email)->first();
         if (!$user) return response()->json(['status' => 'success', 'message' => 'If the email exists, a reset token has been sent'], 200);
         $token = Str::random(60);
@@ -107,7 +107,7 @@ class AuthController extends Controller
     public function confirmReset(Request $request)
     {
         $validator = Validator::make($request->all(), ['email' => 'required|email', 'reset_token' => 'required|string', 'password' => 'required|string|min:8|confirmed']);
-        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors());
+        if ($validator->fails()) return $this->error('Validation failed', 422, $validator->errors()->toArray());
         $user = User::where('email', $request->email)->where('reset_token', $request->reset_token)->where('reset_token_expires_at', '>', now())->first();
         if (!$user) return $this->error('Invalid or expired reset token', 400);
         $user->update(['password' => Hash::make($request->password), 'reset_token' => null, 'reset_token_expires_at' => null]);

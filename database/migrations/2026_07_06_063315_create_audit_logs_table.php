@@ -14,13 +14,18 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
-            $table->string('action');
-            $table->string('model_type')->nullable();
-            $table->unsignedBigInteger('model_id')->nullable();
+            $table->string('event');
+            $table->string('auditable_type')->nullable();
+            $table->unsignedBigInteger('auditable_id')->nullable();
+            $table->json('old_values')->nullable();
+            $table->json('new_values')->nullable();
             $table->string('ip_address', 45)->nullable();
-            $table->timestamp('created_at')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->string('url')->nullable();
+            $table->string('method')->nullable();
+            $table->timestamps();
 
-            $table->index(['model_type', 'model_id']);
+            $table->index(['auditable_type', 'auditable_id']);
         });
     }
 
