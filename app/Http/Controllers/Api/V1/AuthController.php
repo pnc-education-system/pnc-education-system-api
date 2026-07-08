@@ -105,11 +105,19 @@ class AuthController extends Controller
                 return $this->error('Validation failed', 422, $validator->errors());
             }
 
+            // Tokens are stored as SHA-256 hashes in refresh_tokens.token.
+            // Normalize incoming refresh token to the stored value.
+            $incomingToken = (string) $request->refresh_token;
+            $storedToken = strlen($incomingToken) === 64 && ctype_xdigit($incomingToken)
+                ? $incomingToken
+                : hash('sha256', $incomingToken);
+
             $refreshToken = DB::table('refresh_tokens')
-                ->where('token', $request->refresh_token)
+                ->where('token', $storedToken)
                 ->where('revoked_at', null)
                 ->where('expires_at', '>', now())
                 ->first();
+
 
             if (!$refreshToken) {
                 return $this->error('Invalid or expired refresh token', 401);
@@ -227,7 +235,6 @@ class AuthController extends Controller
             return $this->error('Invalid or expired reset token', 400);
         }
 
-        // Expire after 1 hour (matches your previous logic)
         if ($resetRow->created_at === null || now()->diffInSeconds($resetRow->created_at) > 3600) {
             return $this->error('Invalid or expired reset token', 400);
         }

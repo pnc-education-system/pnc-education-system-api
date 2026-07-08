@@ -26,17 +26,26 @@ trait AuditableLogger
 
     protected function logUserAudit(User $user, string $event, Request $request)
     {
+        $newValues = match ($event) {
+            'login' => ['last_login_at' => now()],
+            'logout' => ['logged_out_at' => now()],
+            'token_refresh' => ['refreshed_at' => now()],
+            'password_reset' => ['password_changed' => true],
+            default => [],
+        };
+
         AuditLog::create([
             'user_id' => $user->id,
             'event' => $event,
             'auditable_type' => User::class,
             'auditable_id' => $user->id,
-            'new_values' => $event === 'login' ? ['last_login_at' => now()] : ['password_changed' => true],
+            'new_values' => $newValues,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'url' => $request->url(),
             'method' => $request->method(),
         ]);
     }
+
 }
 
