@@ -14,7 +14,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('auth/me', [AuthController::class, 'me']);
-        
+
         Route::middleware('permission:users.manage')->group(function () {
             Route::apiResource('users', UserController::class);
             Route::patch('users/{user}/toggle', [UserController::class, 'toggle']);
