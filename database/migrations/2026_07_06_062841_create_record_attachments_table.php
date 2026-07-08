@@ -12,9 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('student_record_id')->constrained()->cascadeOnDelete();
             $table->string('file_path');
-            $table->string('file_type');
-            $table->unsignedBigInteger('file_size');
-            $table->foreignId('uploaded_by')->constrained('users')->cascadeOnDelete();
+            $table->string('file_type')->nullable();
             $table->timestamps();
         });
     }

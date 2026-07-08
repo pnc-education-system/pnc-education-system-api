@@ -10,14 +10,11 @@ return new class extends Migration
     {
         Schema::create('evaluation_categories', function (Blueprint $table) {
         $table->id();
-
         $table->foreignId('evaluation_form_id')
             ->constrained()
             ->cascadeOnDelete();
-
         $table->string('name');
         $table->integer('sort_order')->default(1);
-
         $table->timestamps();
     });
     }
