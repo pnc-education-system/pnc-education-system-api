@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
 use App\Models\User;
+use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
+use App\Http\Controllers\Api\V1\Concerns\AuditableLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,8 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
+    use ApiResponse, AuditableLogger;
+
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -272,33 +275,8 @@ class AuthController extends Controller
 
     private function logAudit($user, string $event, Request $request)
     {
-        AuditLog::create([
-            'user_id' => $user->id,
-            'event' => $event,
-            'auditable_type' => User::class,
-            'auditable_id' => $user->id,
-            'new_values' => $event === 'login' ? ['last_login_at' => now()] : ['password_changed' => true],
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'url' => $request->url(),
-            'method' => $request->method(),
-        ]);
-    }
-
-    private function error(string $message, int $code, $errors = [])
-    {
-        $response = ['status' => 'error', 'message' => $message];
-
-        // Some calls pass a MessageBag; normalize to array to match signature.
-        if ($errors instanceof \Illuminate\Support\MessageBag) {
-            $errors = $errors->toArray();
-        }
-
-        if (!empty($errors)) {
-            $response['errors'] = $errors;
-        }
-
-        return response()->json($response, $code);
+        $this->logUserAudit($user, $event, $request);
     }
 }
+
 
