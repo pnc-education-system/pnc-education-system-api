@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Str;
 use Tests\TestCase;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -63,7 +64,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertStatus(401)
-            ->assertJson(['message' => 'Invalid credentials']);
+            ->assertJson(['error' => ['message' => 'Invalid credentials']]);
     }
 
     // -------------------------------------------------------------------------
@@ -77,7 +78,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertStatus(401)
-            ->assertJson(['message' => 'Invalid credentials']);
+            ->assertJson(['error' => ['message' => 'Invalid credentials']]);
     }
 
     // -------------------------------------------------------------------------
@@ -115,7 +116,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertStatus(401)
-            ->assertJson(['message' => 'Account is inactive']);
+            ->assertJson(['error' => ['message' => 'Account is inactive']]);
     }
 
     // -------------------------------------------------------------------------
@@ -181,7 +182,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertStatus(401)
-            ->assertJson(['message' => 'Invalid or expired refresh token']);
+            ->assertJson(['error' => ['message' => 'Invalid or expired refresh token']]);
     }
 
     // -------------------------------------------------------------------------
@@ -295,7 +296,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertStatus(400)
-            ->assertJson(['message' => 'Invalid or expired reset token']);
+            ->assertJson(['error' => ['message' => 'Invalid or expired reset token']]);
     }
 
     // -------------------------------------------------------------------------

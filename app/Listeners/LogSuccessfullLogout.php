@@ -1,9 +1,12 @@
 <?php
+
+namespace App\Listeners;
+
 use App\Models\AuditLog;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Log;
 
-class LogSuccessfulLogout
+class LogSuccessfullLogout
 {
     public function handle(Logout $event): void
     {

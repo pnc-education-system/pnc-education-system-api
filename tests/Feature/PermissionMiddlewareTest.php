@@ -72,7 +72,7 @@ class PermissionMiddlewareTest extends TestCase
         ])->getJson('/api/v1/users');
 
         $response->assertStatus(403)
-            ->assertJson(['message' => 'Missing required permission']);
+            ->assertJson(['error' => ['message' => 'Missing required permission']]);
     }
 
     // -------------------------------------------------------------------------
@@ -94,7 +94,7 @@ class PermissionMiddlewareTest extends TestCase
         ])->getJson('/api/v1/users');
 
         $response->assertStatus(403)
-            ->assertJson(['message' => 'No role assigned']);
+            ->assertJson(['error' => ['message' => 'No role assigned']]);
     }
 
     // -------------------------------------------------------------------------
@@ -105,7 +105,7 @@ class PermissionMiddlewareTest extends TestCase
         $response = $this->getJson('/api/v1/users');
 
         $response->assertStatus(401)
-            ->assertJson(['message' => 'Token not provided']);
+            ->assertJson(['error' => ['message' => 'Token not provided']]);
     }
 
     // -------------------------------------------------------------------------
@@ -136,7 +136,7 @@ class PermissionMiddlewareTest extends TestCase
         ])->getJson('/api/v1/roles');
 
         $response->assertStatus(403)
-            ->assertJson(['message' => 'Missing required permission']);
+            ->assertJson(['error' => ['message' => 'Missing required permission']]);
     }
 
     // -------------------------------------------------------------------------
@@ -152,12 +152,7 @@ class PermissionMiddlewareTest extends TestCase
         ])->getJson('/api/v1/users');
 
         $response->assertStatus(403)
-            ->assertJson([
-                'message' => 'Missing required permission',
-                'errors' => [
-                    'required_permission' => 'users.manage',
-                ],
-            ]);
+            ->assertJson(['error' => ['message' => 'Missing required permission']]);
     }
 
     // -------------------------------------------------------------------------

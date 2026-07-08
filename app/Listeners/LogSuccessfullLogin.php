@@ -1,9 +1,12 @@
 <?php
+
+namespace App\Listeners;
+
 use App\Models\AuditLog;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Log;
 
-class LogSuccessfulLogin
+class LogSuccessfullLogin
 {
     public function handle(Login $event): void
     {
