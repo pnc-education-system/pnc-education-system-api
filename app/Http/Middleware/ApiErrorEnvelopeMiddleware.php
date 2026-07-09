@@ -42,11 +42,18 @@ class ApiErrorEnvelopeMiddleware
                 $message = Response::$statusTexts[$statusCode] ?? 'Request failed';
             }
 
+            $error = [
+                'code' => $statusCode,
+                'message' => $message,
+            ];
+
+            // Preserve field-level validation errors for the frontend
+            if (!empty($payload['errors'])) {
+                $error['errors'] = $payload['errors'];
+            }
+
             $response->setContent(json_encode([
-                'error' => [
-                    'code' => $statusCode,
-                    'message' => $message,
-                ],
+                'error' => $error,
             ], JSON_UNESCAPED_SLASHES));
 
             $response->headers->set('Content-Type', 'application/json');
