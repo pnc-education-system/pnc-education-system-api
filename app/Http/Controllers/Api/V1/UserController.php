@@ -113,6 +113,11 @@ class UserController extends Controller
 
     public function destroy(Request $request, $id)
     {
+        // Prevent self-deletion
+        if ((int) $id === (int) auth()->id()) {
+            return $this->error('You cannot delete your own account', 403);
+        }
+
         $user = User::find($id);
 
         if (!$user) {
