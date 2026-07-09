@@ -6,7 +6,6 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -24,16 +23,15 @@ class PermissionMiddlewareTest extends TestCase
         ]);
 
         // Attach permissions to role
+        $permissionIds = [];
         foreach ($permissionSlugs as $slug) {
             $permission = Permission::firstOrCreate(['slug' => $slug], [
                 'name' => ucfirst(str_replace('.', ' ', $slug)),
                 'module' => 'Test',
             ]);
-            DB::table('role_permission')->insert([
-                'role_id' => $role->id,
-                'permission_id' => $permission->id,
-            ]);
+            $permissionIds[] = $permission->id;
         }
+        $role->permissions()->sync($permissionIds);
 
         return User::create([
             'role_id'   => $role->id,

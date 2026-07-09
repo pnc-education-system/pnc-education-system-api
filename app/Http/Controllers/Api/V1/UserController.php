@@ -121,7 +121,7 @@ class UserController extends Controller
 
         $userData = $user->toArray();
         $user->delete();
-        $this->logAudit($user, 'user_deleted', $request, [], $userData);
+        $this->logAudit($user, 'user_deleted', $request, $userData, []);
 
         return response()->json([
             'status' => 'success',

@@ -21,7 +21,9 @@ Route::prefix('v1')->group(function () {
         });
         Route::middleware('permission:roles.manage')->group(function () {
             Route::get('roles', [RoleController::class, 'index']);
-            Route::put('roles/{role}', [RoleController::class, 'update']);
+            Route::get('roles/{id}', [RoleController::class, 'show']);
+            Route::put('roles/{id}', [RoleController::class, 'update']);
+            Route::delete('roles/{id}', [RoleController::class, 'destroy']);
             Route::get('permissions', [RoleController::class, 'permissions']);
         });
     });
