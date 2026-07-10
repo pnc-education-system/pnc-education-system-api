@@ -13,6 +13,7 @@ class UserSeeder extends Seeder
         $adminRole   = Role::where('slug', 'administrator')->firstOrFail();
         $staffRole   = Role::where('slug', 'education_staff')->firstOrFail();
         $viewerRole  = Role::where('slug', 'management')->firstOrFail();
+
         User::firstOrCreate(
             ['email' => 'admin@pnc.edu.kh'],
             [
@@ -22,6 +23,7 @@ class UserSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
         User::firstOrCreate(
             ['email' => 'staff@pnc.edu.kh'],
             [
@@ -31,6 +33,7 @@ class UserSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
         User::firstOrCreate(
             ['email' => 'management@pnc.edu.kh'],
             [
