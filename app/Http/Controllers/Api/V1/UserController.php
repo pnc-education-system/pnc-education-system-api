@@ -162,12 +162,5 @@ class UserController extends Controller
         ]);
     }
 
-    private function error(string $message, int $code, array $errors = [])
-    {
-        return response()->json(
-            ['status' => 'error', 'message' => $message] + ($errors ? ['errors' => $errors] : []),
-            $code
-        );
-    }
 }
 

@@ -47,8 +47,4 @@ class RoleController extends Controller
     {
         AuditLog::create(['user_id' => auth()->id(), 'event' => $event, 'auditable_type' => Role::class, 'auditable_id' => $role->id, 'old_values' => $oldValues, 'new_values' => $newValues ?: $role->toArray(), 'ip_address' => $request->ip(), 'user_agent' => $request->userAgent(), 'url' => $request->url(), 'method' => $request->method()]);
     }
-    private function error(string $message, int $code, array $errors = [])
-    {
-        return response()->json(['status' => 'error', 'message' => $message] + ($errors ? ['errors' => $errors] : []), $code);
-    }
 }

@@ -285,20 +285,5 @@ class AuthController extends Controller
         ]);
     }
 
-    private function error(string $message, int $code, $errors = [])
-    {
-        $response = ['status' => 'error', 'message' => $message];
-
-        // Some calls pass a MessageBag; normalize to array to match signature.
-        if ($errors instanceof \Illuminate\Support\MessageBag) {
-            $errors = $errors->toArray();
-        }
-
-        if (!empty($errors)) {
-            $response['errors'] = $errors;
-        }
-
-        return response()->json($response, $code);
-    }
 }
 
