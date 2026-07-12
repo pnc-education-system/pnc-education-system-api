@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\StudentImportController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -26,6 +27,11 @@ Route::prefix('v1')->group(function () {
             Route::put('roles/{id}', [RoleController::class, 'update']);
             Route::delete('roles/{id}', [RoleController::class, 'destroy']);
             Route::get('permissions', [RoleController::class, 'permissions']);
+        });
+
+        Route::middleware('permission:students.import')->group(function () {
+            Route::post('students/import/validate', [StudentImportController::class, 'validate']);
+            Route::post('students/import', [StudentImportController::class, 'import']);
         });
     });
 });
