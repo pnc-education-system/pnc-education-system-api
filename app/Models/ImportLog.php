@@ -8,12 +8,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ImportLog extends Model
 {
+    public $timestamps = false;
+
     protected $fillable = [
         'file_name',
         'imported_by',
         'total_rows',
-        'success_rows',
-        'failed_rows',
+        'success_count',
+        'error_count',
+        'status',
     ];
 
     public function importer(): BelongsTo
