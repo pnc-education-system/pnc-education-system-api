@@ -1,10 +1,11 @@
 <?php
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\UserController;
-use App\Http\Controllers\Api\V1\RoleController;
-use App\Http\Controllers\Api\V1\StudentImportController;
+use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\User\UserController;
+use App\Http\Controllers\Api\V1\Role\RoleController;
+use App\Http\Controllers\Api\V1\Student\StudentImportController;
+use App\Http\Controllers\Api\V1\Student\StudentController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -32,6 +33,10 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:students.import')->group(function () {
             Route::post('students/import/validate', [StudentImportController::class, 'validate']);
             Route::post('students/import', [StudentImportController::class, 'import']);
+        });
+
+        Route::middleware('permission:students.view')->group(function () {
+            Route::get('students', [StudentController::class, 'index']);
         });
     });
 });

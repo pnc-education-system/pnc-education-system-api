@@ -11,6 +11,7 @@ class SelectionBatch extends Model
     protected $fillable = [
         'name',
         'description',
+        'year',
         'created_by',
     ];
 
