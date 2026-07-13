@@ -2,6 +2,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\StudentImportController;
@@ -30,8 +31,10 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::middleware('permission:students.import')->group(function () {
+            Route::post('imports/preview', [ImportController::class, 'preview']);
             Route::post('students/import/validate', [StudentImportController::class, 'validate']);
             Route::post('students/import', [StudentImportController::class, 'import']);
         });
     });
 });
+
