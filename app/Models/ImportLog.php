@@ -10,10 +10,15 @@ class ImportLog extends Model
 {
     protected $fillable = [
         'file_name',
-        'imported_by',
         'total_rows',
-        'success_rows',
-        'failed_rows',
+        'success_count',
+        'error_count',
+        'status',
+        'imported_by',
+    ];
+
+    protected $casts = [
+        'status' => 'string',
     ];
 
     public function importer(): BelongsTo

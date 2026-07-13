@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\ImportController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -24,5 +25,9 @@ Route::prefix('v1')->group(function () {
             Route::put('roles/{role}', [RoleController::class, 'update']);
             Route::get('permissions', [RoleController::class, 'permissions']);
         });
+
+        // Import history
+        Route::get('imports', [ImportController::class, 'index']);
+        Route::get('imports/{id}', [ImportController::class, 'show']);
     });
 });

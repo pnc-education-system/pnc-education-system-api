@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ImportError extends Model
 {
+    public $timestamps = false;
+
     protected $fillable = [
         'import_log_id',
         'row_number',
-        'error_message'
+        'field',
+        'error_message',
     ];
 
     public function importLog(): BelongsTo
