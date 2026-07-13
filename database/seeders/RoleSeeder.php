@@ -5,9 +5,9 @@ use Illuminate\Support\Facades\DB;
 class RoleSeeder extends Seeder {
     public function run(): void {
         $roles = [
-            ['name' => 'Admin', 'slug' => 'admin', 'description' => 'Full system access'],
-            ['name' => 'Teacher', 'slug' => 'teacher', 'description' => 'Manage courses'],
-            ['name' => 'Student', 'slug' => 'student', 'description' => 'Read only'],
+            ['name' => 'Administrator', 'slug' => 'administrator', 'description' => 'Full system access'],
+            ['name' => 'Education Staff', 'slug' => 'education_staff', 'description' => 'Day-to-day operations'],
+            ['name' => 'Management', 'slug' => 'management', 'description' => 'Read-only reporting access'],
         ];
         foreach ($roles as $role) {
             DB::table('roles')->updateOrInsert(['slug' => $role['slug']], array_merge($role, ['created_at' => now(), 'updated_at' => now()]));
