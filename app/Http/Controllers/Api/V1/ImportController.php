@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Imports\StudentsPreviewImport;
+use App\Services\StudentImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -11,6 +12,13 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ImportController extends Controller
 {
+
+    private StudentImportService $importService;
+    public function __construct(StudentImportService $importService)
+    {
+        $this->importService = $importService;
+    }
+
     public function preview(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -63,4 +71,37 @@ class ImportController extends Controller
             ], 422);
         }
     }
+    public function commit(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'rows'     => 'required|array',
+            'rows.*'   => 'array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->importService->commit(
+                $id,
+                $request->input('rows'),
+                auth()->id()
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'data'   => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
 }
