@@ -149,14 +149,16 @@ class StudentImportService
         return implode('; ', $messages);
     }
 
-    public function commit(int $importLogId, array $rows, int $userId): array
+    public function commit(array $rows, string $fileName, int $userId): array
     {
-        $importLog = ImportLog::findOrFail($importLogId);
-        if ($importLog->status !== 'Pending') {
-            throw new \Exception('This import has already been processed.');
-        }
-
-        $importLog->update(['status'=>'Processing']);
+        $importLog = ImportLog::create([
+            'file_name'     => $fileName,
+            'imported_by'   => $userId,
+            'total_rows'    => count($rows),
+            'success_count' => 0,
+            'error_count'   => 0,
+            'status'        => 'Processing',
+        ]);
         $chunkSize = 100;
         $chunks = array_chunk($rows, $chunkSize);
 

@@ -3,17 +3,30 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Imports\StudentsPreviewImport;
 use App\Services\StudentImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ImportController extends Controller
 {
+    use ApiResponse;
 
     private StudentImportService $importService;
+
+    private array $requiredColumns = [
+        'student_id_no',
+        'full_name',
+        'gender',
+        'dob',
+        'selection_batch_id',
+        'intake_year',
+    ];
+
     public function __construct(StudentImportService $importService)
     {
         $this->importService = $importService;
@@ -30,19 +43,13 @@ class ImportController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => $validator->errors()->first('file'),
-            ], 422);
+            return $this->error($validator->errors()->first('file'), 422);
         }
 
         $file = $request->file('file');
 
         if ($file->getSize() === 0) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'The uploaded file is empty. Please upload a file containing student data.',
-            ], 422);
+            return $this->error('The uploaded file is empty. Please upload a file containing student data.', 422);
         }
 
         try {
@@ -50,10 +57,15 @@ class ImportController extends Controller
             $data = $rows[0] ?? [];
 
             if (empty($data)) {
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => 'The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.',
-                ], 422);
+                return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
+            }
+
+            $missingColumns = $this->validateHeaders($data[0]);
+            if (!empty($missingColumns)) {
+                return $this->error(
+                    'Missing required columns: ' . implode(', ', $missingColumns) . '. The file must contain: student_id_no, full_name, gender, dob, selection_batch_id, intake_year.',
+                    422
+                );
             }
 
             return response()->json([
@@ -65,30 +77,31 @@ class ImportController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'The uploaded file could not be read. Please verify the file is a valid .xlsx format and try again.',
-            ], 422);
+            Log::error('File preview failed', [
+                'error' => $e->getMessage(),
+                'file'  => $request->file('file')?->getClientOriginalName(),
+            ]);
+
+            return $this->error('The uploaded file could not be read. Please verify the file is a valid .xlsx format and try again.', 422);
         }
     }
-    public function commit(Request $request, int $id): JsonResponse
+
+    public function commit(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'rows'     => 'required|array',
-            'rows.*'   => 'array',
+            'rows'      => 'required|array',
+            'rows.*'    => 'array',
+            'file_name' => 'required|string|max:255',
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => $validator->errors()->first(),
-            ], 422);
+            return $this->error($validator->errors()->first(), 422);
         }
 
         try {
             $result = $this->importService->commit(
-                $id,
                 $request->input('rows'),
+                $request->input('file_name'),
                 auth()->id()
             );
 
@@ -97,11 +110,19 @@ class ImportController extends Controller
                 'data'   => $result,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
-            ], 400);
+            Log::error('Import commit failed', [
+                'file_name' => $request->input('file_name'),
+                'error'     => $e->getMessage(),
+            ]);
+
+            return $this->error($e->getMessage(), 400);
         }
     }
 
+    private function validateHeaders(array $firstRow): array
+    {
+        $fileColumns = array_keys($firstRow);
+
+        return array_diff($this->requiredColumns, $fileColumns);
+    }
 }
