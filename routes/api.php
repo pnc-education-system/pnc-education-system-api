@@ -1,19 +1,11 @@
 <?php
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-<<<<<<< HEAD
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\Student\StudentImportController;
 use App\Http\Controllers\Api\V1\Student\StudentController;
-=======
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\ImportController;
-use App\Http\Controllers\Api\V1\UserController;
-use App\Http\Controllers\Api\V1\RoleController;
-use App\Http\Controllers\Api\V1\StudentImportController;
->>>>>>> f05b53a2e6a3e5ddb6c6826d3bb594b68ff53522
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
