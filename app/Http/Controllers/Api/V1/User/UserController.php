@@ -30,6 +30,7 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'role_id' => 'nullable|exists:roles,id',
+            'phone' => 'nullable|string|max:20',
             'is_active' => 'boolean',
         ]);
 
@@ -37,13 +38,19 @@ class UserController extends Controller
             return $this->error('Validation failed', 422, $validator->errors());
         }
 
-        $user = User::create([
+        $data = [
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role_id' => $request->role_id,
             'is_active' => $request->is_active ?? true,
-        ]);
+        ];
+
+        if ($request->has('phone')) {
+            $data['phone'] = $request->phone;
+        }
+
+        $user = User::create($data);
 
         $this->logAudit($user, 'user_created', $request, [], $user->toArray());
 
@@ -82,6 +89,7 @@ class UserController extends Controller
             'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $id,
             'password' => 'sometimes|required|string|min:8',
             'role_id' => 'nullable|exists:roles,id',
+            'phone' => 'nullable|string|max:20',
             'is_active' => 'boolean',
         ]);
 
@@ -91,7 +99,7 @@ class UserController extends Controller
 
         $oldValues = $user->toArray();
 
-        foreach (['name', 'email', 'role_id', 'is_active'] as $field) {
+        foreach (['name', 'email', 'role_id', 'phone', 'is_active'] as $field) {
             if ($request->has($field)) {
                 $user->$field = $request->$field;
             }

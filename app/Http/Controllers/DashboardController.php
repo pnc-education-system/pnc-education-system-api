@@ -33,6 +33,8 @@ class DashboardController extends Controller
             ->get();
 
         return response()->json([
+            'status' => 'success',
+            'message' => 'Dashboard enrollment stats retrieved successfully',
             'total' => $total,
             'pending' => $pending,
             'enrolled' => $enrolled,

@@ -121,6 +121,44 @@ class ImportController extends Controller
         ], 200);
     }
 
+    public function commitById($importLog, Request $request): JsonResponse
+    {
+        $log = \App\Models\ImportLog::find($importLog);
+
+        if (!$log) {
+            return $this->error('Import log not found', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'rows'   => 'required|array',
+            'rows.*' => 'array',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first(), 422);
+        }
+
+        try {
+            $result = $this->importService->commitById(
+                $log,
+                $request->input('rows'),
+                auth()->id()
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'data'   => $result,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Import commit by ID failed', [
+                'import_log_id' => $importLog,
+                'error'         => $e->getMessage(),
+            ]);
+
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
     public function preview(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

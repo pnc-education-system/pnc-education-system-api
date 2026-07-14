@@ -163,6 +163,68 @@ class StudentImportService
         return implode('; ', $messages);
     }
 
+    public function commitById(ImportLog $importLog, array $rows, int $userId): array
+    {
+        $importLog->update([
+            'total_rows'    => count($rows),
+            'status'        => 'Processing',
+        ]);
+
+        $chunkSize  = 100;
+        $chunks     = array_chunk($rows, $chunkSize);
+        $totalSuccess = 0;
+        $totalFailed  = 0;
+
+        foreach ($chunks as $chunkIndex => $chunk) {
+            try {
+                DB::transaction(function () use ($chunk, &$totalSuccess, $userId) {
+                    $insertData = [];
+                    foreach ($chunk as $row) {
+                        $insertData[] = [
+                            'student_id_no'      => $row['student_id_no'],
+                            'full_name'          => $row['full_name'],
+                            'gender'             => $row['gender'],
+                            'dob'                => $row['dob'],
+                            'phone'              => $row['phone'] ?? null,
+                            'email'              => $row['email'] ?? null,
+                            'province'           => $row['province'] ?? null,
+                            'high_school'        => $row['high_school'] ?? null,
+                            'selection_batch_id' => $row['selection_batch_id'] ?? null,
+                            'enrollment_status'  => $row['enrollment_status'] ?? 'Pending',
+                            'intake_year'        => $row['intake_year'],
+                            'created_by'         => $userId,
+                            'created_at'         => now(),
+                            'updated_at'         => now(),
+                        ];
+                    }
+                    Student::insert($insertData);
+                    $totalSuccess += count($insertData);
+                });
+            } catch (\Exception $e) {
+                $totalFailed += count($chunk);
+                Log::error('Import chunk failed', [
+                    'import_log_id' => $importLog->id,
+                    'chunk'         => $chunkIndex + 1,
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $importLog->update([
+            'success_count' => $totalSuccess,
+            'error_count'   => $totalFailed,
+            'status'        => 'Completed',
+        ]);
+
+        return [
+            'import_log_id' => $importLog->id,
+            'total_rows'    => count($rows),
+            'imported'      => $totalSuccess,
+            'failed'        => $totalFailed,
+            'chunks'        => count($chunks),
+        ];
+    }
+
     public function commit(array $rows, string $fileName, int $userId): array
     {
         $importLog = ImportLog::create([

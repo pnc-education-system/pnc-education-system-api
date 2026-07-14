@@ -2,46 +2,75 @@
 
 namespace Database\Seeders;
 
+use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $adminRole   = DB::table('roles')->where('slug', 'administrator')->value('id');
-        $staffRole   = DB::table('roles')->where('slug', 'education_staff')->value('id');
-        $managerRole = DB::table('roles')->where('slug', 'management')->value('id');
-
-        $allPermissions = DB::table('permissions')->pluck('id')->toArray();
-
-        // Admin gets all permissions
-        foreach ($allPermissions as $permId) {
-            DB::table('role_permission')->updateOrInsert(
-                ['role_id' => $adminRole, 'permission_id' => $permId],
-                ['role_id' => $adminRole, 'permission_id' => $permId]
+        $permissionDefs = [
+            ['name' => 'Manage Users',        'slug' => 'users.manage',        'module' => 'admin'],
+            ['name' => 'Manage Roles',         'slug' => 'roles.manage',        'module' => 'admin'],
+            ['name' => 'View Audit Logs',      'slug' => 'audit.view',          'module' => 'admin'],
+            ['name' => 'Manage Settings',      'slug' => 'settings.manage',     'module' => 'admin'],
+            // Students
+            ['name' => 'View Students',        'slug' => 'students.view',       'module' => 'students'],
+            ['name' => 'Edit Students',        'slug' => 'students.edit',       'module' => 'students'],
+            ['name' => 'Import Students',      'slug' => 'students.import',     'module' => 'students'],
+            // Enrollment
+            ['name' => 'Manage Enrollment',    'slug' => 'enrollment.manage',   'module' => 'enrollment'],
+            // Cards
+            ['name' => 'Generate ID Cards',    'slug' => 'cards.generate',      'module' => 'cards'],
+            // Records
+            ['name' => 'View Records',         'slug' => 'records.view',        'module' => 'records'],
+            ['name' => 'Manage Records',       'slug' => 'records.manage',      'module' => 'records'],
+            // Evaluation
+            ['name' => 'View Evaluations',     'slug' => 'evaluation.view',     'module' => 'evaluation'],
+            ['name' => 'Manage Evaluations',   'slug' => 'evaluation.manage',   'module' => 'evaluation'],
+            ['name' => 'Submit Evaluation',    'slug' => 'evaluation.submit',   'module' => 'evaluation'],
+            // Reports
+            ['name' => 'View Reports',         'slug' => 'reports.view',        'module' => 'reports'],
+        ];
+        foreach ($permissionDefs as $def) {
+            Permission::firstOrCreate(
+                ['slug' => $def['slug']],
+                ['name' => $def['name'], 'module' => $def['module']]
             );
         }
 
-        // Staff gets students, enrollment, cards, records, evaluation, reports
-        $staffSlugs = ['students.view','students.edit','students.import','enrollment.manage','cards.generate',
-                       'records.view','records.manage','evaluation.view','evaluation.manage','evaluation.submit','reports.view'];
-        $staffPerms = DB::table('permissions')->whereIn('slug', $staffSlugs)->pluck('id')->toArray();
-        foreach ($staffPerms as $permId) {
-            DB::table('role_permission')->updateOrInsert(
-                ['role_id' => $staffRole, 'permission_id' => $permId],
-                ['role_id' => $staffRole, 'permission_id' => $permId]
-            );
-        }
+        $adminRole = Role::firstOrCreate(
+            ['slug' => 'administrator'],
+            ['name' => 'Administrator', 'description' => 'Full system access']
+        );
 
-        // Management gets view-only
-        $viewSlugs = ['students.view', 'reports.view', 'evaluation.view', 'audit.view'];
-        $viewPerms = DB::table('permissions')->whereIn('slug', $viewSlugs)->pluck('id')->toArray();
-        foreach ($viewPerms as $permId) {
-            DB::table('role_permission')->updateOrInsert(
-                ['role_id' => $managerRole, 'permission_id' => $permId],
-                ['role_id' => $managerRole, 'permission_id' => $permId]
-            );
-        }
+        $staffRole = Role::firstOrCreate(
+            ['slug' => 'education_staff'],
+            ['name' => 'Education Staff', 'description' => 'Day-to-day operations']
+        );
+
+        $viewerRole = Role::firstOrCreate(
+            ['slug' => 'management'],
+            ['name' => 'Management', 'description' => 'Read-only reporting access']
+        );
+
+        $adminRole->permissions()->sync(Permission::pluck('id'));
+
+        $staffPerms = Permission::whereIn('slug', [
+            'students.view', 'students.edit', 'students.import',
+            'enrollment.manage', 'cards.generate',
+            'records.view', 'records.manage',
+            'evaluation.view', 'evaluation.manage', 'evaluation.submit',
+            'reports.view',
+        ])->pluck('id');
+        $staffRole->permissions()->sync($staffPerms);
+
+        $viewerRole->permissions()->sync(
+            Permission::whereIn('slug', ['students.view', 'reports.view', 'evaluation.view'])->pluck('id')
+        );
+
+
     }
 }
+

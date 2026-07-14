@@ -41,7 +41,9 @@ Route::prefix('v1')->group(function () {
             Route::get('imports',          [ImportController::class, 'index']);
             Route::get('imports/{id}',     [ImportController::class, 'show']);
             Route::post('imports/preview', [ImportController::class, 'preview']);
-            Route::post('imports/commit',  [ImportController::class, 'commit']);
+            Route::post('imports/commit',            [ImportController::class, 'commit']);
+            Route::post('imports/{importLog}/commit',  [ImportController::class, 'commitById'])
+                ->whereNumber('importLog');
         });
 
         Route::middleware('permission:students.view')->group(function () {
