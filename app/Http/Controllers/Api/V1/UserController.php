@@ -3,8 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
-use App\Http\Controllers\Api\V1\Concerns\AuditableLogger;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,8 +11,6 @@ use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
-    use ApiResponse, AuditableLogger;
-
     public function index(Request $request)
     {
         return response()->json([
@@ -45,7 +42,7 @@ class UserController extends Controller
             'is_active' => $request->is_active ?? true,
         ]);
 
-        $this->logAudit($user, 'user_created', $request, [], $user->toArray());
+        $this->logAudit($user, 'user_created', $request, $user->toArray());
 
         return response()->json([
             'status' => 'success',
@@ -111,13 +108,8 @@ class UserController extends Controller
         ], 200);
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy($id)
     {
-        // Prevent self-deletion
-        if ((int) $id === (int) auth()->id()) {
-            return $this->error('You cannot delete your own account', 403);
-        }
-
         $user = User::find($id);
 
         if (!$user) {
@@ -126,7 +118,7 @@ class UserController extends Controller
 
         $userData = $user->toArray();
         $user->delete();
-        $this->logAudit($user, 'user_deleted', $request, $userData, []);
+        $this->logAudit($user, 'user_deleted', $request(), $userData);
 
         return response()->json([
             'status' => 'success',
@@ -153,5 +145,22 @@ class UserController extends Controller
             ],
         ], 200);
     }
+
+    private function logAudit($user, string $event, Request $request, array $oldValues = [], array $newValues = [])
+    {
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'event' => $event,
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'old_values' => $oldValues,
+            'new_values' => $newValues ?: $user->toArray(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->url(),
+            'method' => $request->method(),
+        ]);
+    }
+
 }
 

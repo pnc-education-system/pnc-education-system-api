@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
@@ -11,6 +12,7 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         $permissionDefs = [
+            // Users
             ['name' => 'Manage Users',        'slug' => 'users.manage',        'module' => 'admin'],
             ['name' => 'Manage Roles',         'slug' => 'roles.manage',        'module' => 'admin'],
             ['name' => 'View Audit Logs',      'slug' => 'audit.view',          'module' => 'admin'],
@@ -33,11 +35,9 @@ class RolePermissionSeeder extends Seeder
             // Reports
             ['name' => 'View Reports',         'slug' => 'reports.view',        'module' => 'reports'],
         ];
+
         foreach ($permissionDefs as $def) {
-            Permission::firstOrCreate(
-                ['slug' => $def['slug']],
-                ['name' => $def['name'], 'module' => $def['module']]
-            );
+            Permission::firstOrCreate(['slug' => $def['slug']], $def);
         }
 
         $adminRole = Role::firstOrCreate(
@@ -57,6 +57,7 @@ class RolePermissionSeeder extends Seeder
 
         $adminRole->permissions()->sync(Permission::pluck('id'));
 
+
         $staffPerms = Permission::whereIn('slug', [
             'students.view', 'students.edit', 'students.import',
             'enrollment.manage', 'cards.generate',
@@ -66,11 +67,10 @@ class RolePermissionSeeder extends Seeder
         ])->pluck('id');
         $staffRole->permissions()->sync($staffPerms);
 
+
         $viewerRole->permissions()->sync(
             Permission::whereIn('slug', ['students.view', 'reports.view', 'evaluation.view'])->pluck('id')
         );
-
-
     }
 }
 

@@ -3,22 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\User;
-use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
-use App\Http\Controllers\Api\V1\Concerns\AuditableLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Str;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
-    use ApiResponse, AuditableLogger;
-
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -42,7 +39,7 @@ class AuthController extends Controller
 
         $user->update(['last_login_at' => now()]);
 
-        $this->logUserAudit($user, 'login', $request);
+        $this->logAudit($user, 'login', $request);
 
         $accessToken = JWTAuth::fromUser($user);
         $refreshToken = $this->generateRefreshToken($user);
@@ -76,10 +73,9 @@ class AuthController extends Controller
             $user = JWTAuth::user();
             JWTAuth::invalidate($token);
 
-
             if ($user) {
                 $this->revokeRefreshTokens($user);
-                $this->logUserAudit($user, 'logout', $request);
+                $this->logAudit($user, 'logout', $request);
             }
 
             return response()->json([
@@ -97,53 +93,55 @@ class AuthController extends Controller
 
     public function refresh(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'refresh_token' => 'required|string',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'refresh_token' => 'required|string',
+            ]);
 
-        if ($validator->fails()) {
-            return $this->error('Validation failed', 422, $validator->errors());
+            if ($validator->fails()) {
+                return $this->error('Validation failed', 422, $validator->errors());
+            }
+
+            $refreshToken = DB::table('refresh_tokens')
+                ->where('token', $request->refresh_token)
+                ->where('revoked_at', null)
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if (!$refreshToken) {
+                return $this->error('Invalid or expired refresh token', 401);
+            }
+
+            $user = User::find($refreshToken->user_id);
+
+            if (!$user || !$user->is_active) {
+                return $this->error('User not found or inactive', 401);
+            }
+
+            $newAccessToken = JWTAuth::fromUser($user);
+            $newRefreshToken = $this->generateRefreshToken($user);
+
+            DB::table('refresh_tokens')
+                ->where('id', $refreshToken->id)
+                ->update(['revoked_at' => now()]);
+
+            $this->logAudit($user, 'token_refresh', $request);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Token refreshed successfully',
+                'access_token' => $newAccessToken,
+                'refresh_token' => $newRefreshToken,
+                'token_type' => 'bearer',
+                'expires_in' => (int) config('jwt.ttl') * 60,
+            ], 200);
+        } catch (TokenInvalidException $e) {
+            return $this->error('Invalid token', 401);
+        } catch (TokenExpiredException $e) {
+            return $this->error('Token has expired', 401);
+        } catch (\Exception $e) {
+            return $this->error('Failed to refresh token', 500, ['error' => $e->getMessage()]);
         }
-
-        $incomingToken = (string) $request->refresh_token;
-        $storedToken = strlen($incomingToken) === 64 && ctype_xdigit($incomingToken)
-            ? $incomingToken
-            : hash('sha256', $incomingToken);
-
-        $refreshToken = DB::table('refresh_tokens')
-            ->where('token', $storedToken)
-            ->where('revoked_at', null)
-            ->where('expires_at', '>', now())
-            ->first();
-
-
-        if (!$refreshToken) {
-            return $this->error('Invalid or expired refresh token', 401);
-        }
-
-        $user = User::find($refreshToken->user_id);
-
-        if (!$user || !$user->is_active) {
-            return $this->error('User not found or inactive', 401);
-        }
-
-        $newAccessToken = JWTAuth::fromUser($user);
-        $newRefreshToken = $this->generateRefreshToken($user);
-
-        DB::table('refresh_tokens')
-            ->where('id', $refreshToken->id)
-            ->update(['revoked_at' => now()]);
-
-        $this->logUserAudit($user, 'token_refresh', $request);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Token refreshed successfully',
-            'access_token' => $newAccessToken,
-            'refresh_token' => $newRefreshToken,
-            'token_type' => 'bearer',
-            'expires_in' => (int) config('jwt.ttl') * 60,
-        ], 200);
     }
 
     public function me(Request $request)
@@ -198,26 +196,10 @@ class AuthController extends Controller
             'created_at' => now(),
         ]);
 
-        // Send email
-        \Log::info('Attempting to send password reset email to: ' . $user->email);
-        try {
-            \Mail::raw(
-                "Click the link below to reset your password:\n\n" .
-                "http://localhost:5173/reset-password?email=" . $user->email . "&reset_token=" . $token,
-                function ($message) use ($user) {
-                    $message->to($user->email)
-                        ->subject('Reset Password Request');
-                }
-            );
-            \Log::info('Password reset email sent successfully to: ' . $user->email);
-        } catch (\Exception $e) {
-            \Log::error('Failed to send password reset email: ' . $e->getMessage());
-        }
-
         return response()->json([
             'status' => 'success',
-            'message' => 'If the email exists, a reset link has been sent',
-            'reset_token' => $token, // For testing purposes
+            'message' => 'If the email exists, a reset token has been sent',
+            'reset_token' => $token,
         ], 200);
     }
 
@@ -242,6 +224,7 @@ class AuthController extends Controller
             return $this->error('Invalid or expired reset token', 400);
         }
 
+        // Expire after 1 hour (matches your previous logic)
         if ($resetRow->created_at === null || now()->diffInSeconds($resetRow->created_at) > 3600) {
             return $this->error('Invalid or expired reset token', 400);
         }
@@ -259,7 +242,7 @@ class AuthController extends Controller
             ->where('token', $request->reset_token)
             ->delete();
 
-        $this->logUserAudit($user, 'password_reset', $request);
+        $this->logAudit($user, 'password_reset', $request);
 
         return response()->json(['status' => 'success', 'message' => 'Password reset successfully'], 200);
     }
@@ -285,6 +268,21 @@ class AuthController extends Controller
             ->where('user_id', $user->id)
             ->where('revoked_at', null)
             ->update(['revoked_at' => now()]);
+    }
+
+    private function logAudit($user, string $event, Request $request)
+    {
+        AuditLog::create([
+            'user_id' => $user->id,
+            'event' => $event,
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'new_values' => $event === 'login' ? ['last_login_at' => now()] : ['password_changed' => true],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->url(),
+            'method' => $request->method(),
+        ]);
     }
 
 }
