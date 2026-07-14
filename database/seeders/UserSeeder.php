@@ -1,9 +1,9 @@
 <?php
+
 namespace Database\Seeders;
 
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
@@ -13,6 +13,7 @@ class UserSeeder extends Seeder
         $adminRole   = Role::where('slug', 'administrator')->firstOrFail();
         $staffRole   = Role::where('slug', 'education_staff')->firstOrFail();
         $viewerRole  = Role::where('slug', 'management')->firstOrFail();
+
 
         User::firstOrCreate(
             ['email' => 'admin@pnc.edu.kh'],
