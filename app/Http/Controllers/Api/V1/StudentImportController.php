@@ -3,89 +3,105 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
-use App\Jobs\ProcessStudentImport;
-use App\Models\ImportLog;
+use App\Services\ImportValidationService;
+use App\Services\StudentImportService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class StudentImportController extends Controller
 {
-    use ApiResponse;
+    private StudentImportService $importService;
+    private ImportValidationService $validationService;
 
-    public function commit(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:20480',
-        ]);
-
-        $file = $request->file('file');
-
-        $filePath = $file->store('imports');
-
-        $importLog = ImportLog::create([
-            'file_name'     => $file->getClientOriginalName(),
-            'file_path'     => $filePath,
-            'imported_by'   => auth()->id(),
-            'total_rows'    => 0,
-            'success_count' => 0,
-            'error_count'   => 0,
-            'status'        => 'Pending',
-        ]);
-
-        ProcessStudentImport::dispatch($importLog);
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Import file uploaded successfully. Processing has been queued.',
-            'data'    => [
-                'import_log_id' => $importLog->id,
-                'file_name'     => $importLog->file_name,
-                'status'        => $importLog->status,
-            ],
-        ], 202);
+    public function __construct(
+        StudentImportService $importService,
+        ImportValidationService $validationService
+    ) {
+        $this->importService = $importService;
+        $this->validationService = $validationService;
     }
 
-    public function status(int $importLogId)
+    public function validate(Request $request): JsonResponse
     {
-        $importLog = ImportLog::withCount('errors')->find($importLogId);
+        $validation = $this->validateRequest($request, $this->getValidateRules());
 
-        if (!$importLog) {
-            return $this->error('Import log not found', 404);
+        if ($validation->fails()) {
+            return $this->validationErrorResponse($validation);
         }
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Import status retrieved successfully.',
-            'data'    => [
-                'id'            => $importLog->id,
-                'file_name'     => $importLog->file_name,
-                'status'        => $importLog->status,
-                'total_rows'    => $importLog->total_rows,
-                'success_count' => $importLog->success_count,
-                'error_count'   => $importLog->error_count,
-                'created_at'    => $importLog->created_at,
-                'updated_at'    => $importLog->updated_at,
-            ],
-        ]);
+        $result = $this->validationService->validate($request->input('rows'));
+
+        return $this->successResponse('Validation completed', $result);
     }
 
-    public function index(Request $request)
+    public function import(Request $request): JsonResponse
     {
-        $importLogs = ImportLog::where('imported_by', auth()->id())
-            ->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 15));
+        $validation = $this->validateRequest($request, $this->getImportRules());
 
+        if ($validation->fails()) {
+            return $this->validationErrorResponse($validation);
+        }
+
+        try {
+            $result = $this->importService->import(
+                $request->input('rows'),
+                $request->input('file_name'),
+                auth()->id()
+            );
+
+            return $this->successResponse('Import completed successfully', $result);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Import failed', $e->getMessage(), 500);
+        }
+    }
+
+    private function getValidateRules(): array
+    {
+        return [
+            'rows' => 'required|array',
+            'rows.*' => 'array',
+        ];
+    }
+
+    private function getImportRules(): array
+    {
+        return [
+            'rows' => 'required|array',
+            'rows.*' => 'array',
+            'file_name' => 'required|string|max:255',
+        ];
+    }
+
+    private function validateRequest(Request $request, array $rules)
+    {
+        return Validator::make($request->all(), $rules);
+    }
+
+    private function validationErrorResponse($validator): JsonResponse
+    {
         return response()->json([
-            'status'  => 'success',
-            'message' => 'Import logs retrieved successfully.',
-            'data'    => $importLogs->items(),
-            'meta'    => [
-                'current_page' => $importLogs->currentPage(),
-                'last_page'    => $importLogs->lastPage(),
-                'per_page'     => $importLogs->perPage(),
-                'total'        => $importLogs->total(),
-            ],
-        ]);
+            'status' => 'error',
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422);
+    }
+
+    private function successResponse(string $message, $data = null): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'data' => $data,
+        ], 200);
+    }
+
+    private function errorResponse(string $message, string $error, int $statusCode = 500): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message,
+            'error' => $error,
+        ], $statusCode);
     }
 }

@@ -4,229 +4,213 @@ namespace App\Services;
 
 use App\Models\ImportError;
 use App\Models\ImportLog;
-use App\Models\SelectionBatch;
 use App\Models\Student;
+use Exception;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StudentImportService
 {
-    private const CHUNK_SIZE = 100;
+    private ImportValidationService $validationService;
 
-    public function process(ImportLog $importLog): array
+    public function __construct(ImportValidationService $validationService)
     {
-        $filePath = storage_path('app/' . $importLog->file_path);
+        $this->validationService = $validationService;
+    }
 
-        if (!file_exists($filePath)) {
-            throw new \RuntimeException("Import file not found: {$filePath}");
-        }
+    public function import(array $rows, string $fileName, int $userId): array
+    {
+        $validationResult = $this->validationService->validate($rows);
+        $importLog = $this->createImportLog($fileName, $userId, $validationResult['summary']);
 
-        $importLog->update(['status' => 'Processing']);
+        $this->logValidationErrors($importLog->id, $validationResult['invalidRows']);
+        $importedCount = $this->importValidRowsIfAny($validationResult['validRows'], $userId);
 
-        $handle = fopen($filePath, 'r');
-        if (!$handle) {
-            $importLog->update(['status' => 'Failed']);
-            throw new \RuntimeException('Unable to open import file.');
-        }
+        $importLog->update(['success_rows' => $importedCount]);
 
-        $headers = fgetcsv($handle);
-        if (!$headers) {
-            fclose($handle);
-            $importLog->update(['status' => 'Failed']);
-            throw new \RuntimeException('CSV file is empty or has no header row.');
-        }
+        return $this->buildImportResult($validationResult, $importedCount, $importLog->id);
+    }
 
-        $headers = array_map('trim', $headers);
-        $expectedHeaders = ['student_id_no', 'full_name', 'gender', 'dob', 'phone', 'email', 'province', 'high_school', 'intake_year'];
+    private function createImportLog(string $fileName, int $userId, array $summary): ImportLog
+    {
+        return ImportLog::create([
+            'file_name' => $fileName,
+            'imported_by' => $userId,
+            'total_rows' => $summary['total'],
+            'success_rows' => 0,
+            'failed_rows' => $summary['invalid'],
+        ]);
+    }
 
-        $headerMap = $this->mapHeaders($headers, $expectedHeaders);
+    private function importValidRowsIfAny(array $validRows, int $userId): int
+    {
+        return empty($validRows) ? 0 : $this->importValidRows($validRows, $userId);
+    }
 
-        $totalImported = 0;
-        $rowNumber = 1;
+    private function buildImportResult(array $validationResult, int $importedCount, int $importLogId): array
+    {
+        return [
+            'validation' => $validationResult,
+            'import' => [
+                'imported' => $importedCount,
+                'failed' => $validationResult['summary']['invalid'],
+                'import_log_id' => $importLogId,
+            ],
+        ];
+    }
 
-        $activeBatch = SelectionBatch::where('is_active', true)->first();
-        if (!$activeBatch) {
-            fclose($handle);
-            $importLog->update(['status' => 'Failed']);
-            throw new \RuntimeException('No active selection batch found. Please create one before importing.');
-        }
+    private function importValidRows(array $validRows, int $userId): int
+    {
+        $importedCount = 0;
 
         DB::beginTransaction();
+
         try {
-            $chunk = [];
-            $chunkErrors = [];
-
-            while (($row = fgetcsv($handle)) !== false) {
-                $rowNumber++;
-                $data = $this->mapRowToData($row, $headerMap);
-
-                if ($this->isRowEmpty($data)) {
-                    continue;
+            foreach ($validRows as $row) {
+                if ($this->importSingleRow($row, $userId)) {
+                    $importedCount++;
                 }
-
-                $errors = $this->validateRow($data, $rowNumber);
-                if (!empty($errors)) {
-
-                    foreach ($errors as &$error) {
-                        $error['import_log_id'] = $importLog->id;
-                    }
-                    unset($error);
-                    $chunkErrors = array_merge($chunkErrors, $errors);
-                    continue;
-                }
-
-                $data['selection_batch_id'] = $activeBatch->id;
-                $data['created_by'] = $importLog->imported_by;
-                $data['enrollment_status'] = 'Pending';
-
-                $data['gender'] = ucfirst(strtolower($data['gender']));
-                if (!empty($data['intake_year'])) {
-                    $data['intake_year'] = (int) $data['intake_year'];
-                }
-
-                $chunk[] = $data;
-
-                if (count($chunk) >= self::CHUNK_SIZE) {
-                    $this->flushChunk($chunk, $chunkErrors, $importLog);
-                    $totalImported += count($chunk);
-                    $chunk = [];
-                    $chunkErrors = [];
-                }
-            }
-
-            if (!empty($chunk)) {
-                $this->flushChunk($chunk, $chunkErrors, $importLog);
-                $totalImported += count($chunk);
-            }
-
-            if (!empty($chunkErrors)) {
-                ImportError::insert($chunkErrors);
             }
 
             DB::commit();
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
-            $importLog->update([
-                'status' => 'Failed',
+            Log::error('Student import transaction failed', [
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
 
-        fclose($handle);
+        return $importedCount;
+    }
 
-        $actualErrorCount = ImportError::where('import_log_id', $importLog->id)->count();
+    private function importSingleRow(array $row, int $userId): bool
+    {
+        try {
+            Student::create($this->buildStudentData($row, $userId));
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to import student row', [
+                'row' => $row,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
 
-        $importLog->update([
-            'success_count' => $totalImported,
-            'error_count'   => $actualErrorCount,
-            'total_rows'    => $rowNumber - 1,
-            'status'        => 'Completed',
-        ]);
-
+    private function buildStudentData(array $row, int $userId): array
+    {
         return [
-            'success_count' => $totalImported,
-            'error_count'   => $actualErrorCount,
+            'student_id_no' => $row['student_id_no'],
+            'full_name' => $row['full_name'],
+            'gender' => $row['gender'],
+            'dob' => $row['dob'],
+            'phone' => $row['phone'] ?? null,
+            'email' => $row['email'] ?? null,
+            'province' => $row['province'] ?? null,
+            'high_school' => $row['high_school'] ?? null,
+            'selection_batch_id' => $row['selection_batch_id'],
+            'enrollment_status' => $row['enrollment_status'],
+            'intake_year' => $row['intake_year'],
+            'created_by' => $userId,
         ];
     }
 
-    private function mapHeaders(array $headers, array $expected): array
+    private function logValidationErrors(int $importLogId, array $invalidRows): void
     {
-        $headerMap = [];
-        $lowerHeaders = array_map('strtolower', $headers);
+        $errorRecords = $this->buildErrorRecords($importLogId, $invalidRows);
 
-        foreach ($expected as $field) {
-            $index = array_search(strtolower($field), $lowerHeaders);
-            if ($index !== false) {
-                $headerMap[$field] = $index;
+        if (!empty($errorRecords)) {
+            ImportError::insert($errorRecords);
+        }
+    }
+
+    private function buildErrorRecords(int $importLogId, array $invalidRows): array
+    {
+        $timestamp = now();
+
+        return array_map(fn($row) => [
+            'import_log_id' => $importLogId,
+            'row_number' => $row['row'],
+            'error_message' => $this->formatErrorMessage($row['errors']),
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ], $invalidRows);
+    }
+
+    private function formatErrorMessage(array $errors): string
+    {
+        $messages = [];
+
+        foreach ($errors as $field => $fieldErrors) {
+            $messages[] = $field . ': ' . implode(', ', $fieldErrors);
+        }
+
+        return implode('; ', $messages);
+    }
+
+    public function commit(array $rows, string $fileName, int $userId): array
+    {
+        $importLog = ImportLog::create([
+            'file_name'     => $fileName,
+            'imported_by'   => $userId,
+            'total_rows'    => count($rows),
+            'success_count' => 0,
+            'error_count'   => 0,
+            'status'        => 'Processing',
+        ]);
+        $chunkSize = 100;
+        $chunks = array_chunk($rows, $chunkSize);
+
+        $totalSuccess = 0;
+        $totalFailed = 0;
+
+        foreach($chunks as $chunkIndex => $chunk){
+            try{
+                DB::transaction(function () use ($chunk, &$totalSuccess, $userId) {
+                    $insertData = [];
+                    foreach ($chunk as $row) {
+                        $insertData[] = [
+                            'student_id_no'      => $row['student_id_no'],
+                            'full_name'          => $row['full_name'],
+                            'gender'             => $row['gender'],
+                            'dob'                => $row['dob'],
+                            'phone'              => $row['phone'] ?? null,
+                            'email'              => $row['email'] ?? null,
+                            'province'           => $row['province'] ?? null,
+                            'high_school'        => $row['high_school'] ?? null,
+                            'selection_batch_id' => $row['selection_batch_id'] ?? null,
+                            'enrollment_status'  => $row['enrollment_status'] ?? 'Pending',
+                            'intake_year'        => $row['intake_year'],
+                            'created_by'         => $userId,
+                            'created_at'         => now(),
+                            'updated_at'         => now(),
+                        ];
+                    }
+                    Student::insert($insertData);
+                    $totalSuccess += count($insertData);
+                });
+            }catch(\Exception $e){
+                $totalFailed += count($chunk);
+
+                Log::error('Import chunk failed', [
+                    'import_log_id' => $importLogId,
+                    'chunk'         => $chunkIndex + 1,
+                    'error'         => $e->getMessage(),
+                ]);
             }
         }
-
-        return $headerMap;
-    }
-
-    private function mapRowToData(array $row, array $headerMap): array
-    {
-        $data = [];
-        foreach ($headerMap as $field => $index) {
-            $data[$field] = isset($row[$index]) ? trim($row[$index]) : '';
-        }
-        return $data;
-    }
-
-    private function isRowEmpty(array $data): bool
-    {
-        return empty(array_filter($data, fn($val) => $val !== '' && $val !== null));
-    }
-
-    private function validateRow(array $data, int $rowNumber): array
-    {
-        $errors = [];
-
-        $requiredFields = ['student_id_no', 'full_name', 'gender'];
-        foreach ($requiredFields as $field) {
-            if (empty($data[$field])) {
-                $errors[] = [
-                    'row_number' => $rowNumber,
-                    'field' => $field,
-                    'error_message' => ucfirst(str_replace('_', ' ', $field)) . ' is required.',
-                ];
-            }
-        }
-
-        if (!empty($data['student_id_no'])) {
-            $exists = Student::where('student_id_no', $data['student_id_no'])->exists();
-            if ($exists) {
-                $errors[] = [
-                    'row_number' => $rowNumber,
-                    'field' => 'student_id_no',
-                    'error_message' => "Student ID '{$data['student_id_no']}' already exists.",
-                ];
-            }
-        }
-
-        if (!empty($data['gender']) && !in_array(ucfirst(strtolower($data['gender'])), ['Male', 'Female'])) {
-            $errors[] = [
-                'row_number' => $rowNumber,
-                'field' => 'gender',
-                'error_message' => "Gender must be 'Male' or 'Female'.",
-            ];
-        }
-
-        if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = [
-                'row_number' => $rowNumber,
-                'field' => 'email',
-                'error_message' => "Invalid email format: '{$data['email']}'.",
-            ];
-        }
-
-        if (!empty($data['dob']) && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['dob'])) {
-            $errors[] = [
-                'row_number' => $rowNumber,
-                'field' => 'dob',
-                'error_message' => "Date of birth must be in YYYY-MM-DD format.",
-            ];
-        }
-
-        if (!empty($data['intake_year']) && !preg_match('/^\d{4}$/', $data['intake_year'])) {
-            $errors[] = [
-                'row_number' => $rowNumber,
-                'field' => 'intake_year',
-                'error_message' => "Intake year must be a 4-digit year.",
-            ];
-        }
-
-        return $errors;
-    }
-
-    private function flushChunk(array $students, array &$errors, ImportLog $importLog): void
-    {
-        Student::withoutTimestamps(function () use ($students) {
-            Student::insert($students);
-        });
-
-        if (!empty($errors)) {
-            ImportError::insert($errors);
-            $errors = [];
-        }
+        $importLog->update([
+            'success_count' =>$totalSuccess,
+            'error_count'=>$totalFailed,
+            'status'=>$totalFailed > 0 ? 'Completed':'Completed',
+        ]);
+        return[
+            'import_log_id'=>$importLogId,
+            'total_rows'=>count($rows),
+            'imported'=>$totalSuccess,
+            'failed'=>$totalFailed,
+            'chunks'=>count($chunks)
+        ];
     }
 }

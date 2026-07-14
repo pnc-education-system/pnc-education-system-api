@@ -2,9 +2,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\RoleController;
-use App\Http\Controllers\Api\V1\ErrorExportController;
 use App\Http\Controllers\Api\V1\StudentImportController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -31,11 +31,11 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::middleware('permission:students.import')->group(function () {
-            Route::post('students/import/commit', [StudentImportController::class, 'commit']);
-            Route::get('students/import/logs', [StudentImportController::class, 'index']);
-            Route::get('students/import/logs/{importLogId}', [StudentImportController::class, 'status']);
-            Route::get('import-logs/{importLogId}/errors', [ErrorExportController::class, 'getErrors']);
-            Route::get('import-logs/{importLogId}/errors/export', [ErrorExportController::class, 'exportErrors']);
+            Route::post('imports/preview',     [ImportController::class, 'preview']);
+            Route::post('imports/commit', [ImportController::class, 'commit']);
+            Route::post('students/import/validate', [StudentImportController::class, 'validate']);
+            Route::post('students/import',         [StudentImportController::class, 'import']);
         });
     });
 });
+
