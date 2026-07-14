@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+// Stores individual row validation errors generated during import processing.
 class ImportError extends Model
 {
     public $timestamps = false;
