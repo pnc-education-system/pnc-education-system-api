@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\V1;
+namespace App\Http\Controllers\Api\V1\Role;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
@@ -17,6 +17,49 @@ class RoleController extends Controller
             'status' => 'success',
             'message' => 'Roles retrieved successfully',
             'data' => Role::with('permissions')->get(),
+        ], 200);
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:roles,slug',
+            'description' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation failed', 422, $validator->errors()->toArray());
+        }
+
+        $role = Role::create($request->only(['name', 'slug', 'description']));
+
+        if ($request->has('permissions')) {
+            $permissionIds = Permission::whereIn('slug', $request->permissions)->pluck('id');
+            $role->permissions()->sync($permissionIds);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Role created successfully',
+            'data' => $role->load('permissions'),
+        ], 201);
+    }
+
+    public function destroy($id)
+    {
+        $role = Role::find($id);
+
+        if (!$role) {
+            return $this->error('Role not found', 404);
+        }
+
+        $role->permissions()->detach();
+        $role->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Role deleted successfully',
         ], 200);
     }
 
@@ -117,17 +160,4 @@ class RoleController extends Controller
         ]);
     }
 
-    private function error(
-        string $message,
-        int $code,
-        array $errors = []
-    ) {
-        return response()->json(
-            [
-                'status' => 'error',
-                'message' => $message,
-            ] + ($errors ? ['errors' => $errors] : []),
-            $code
-        );
-    }
 }

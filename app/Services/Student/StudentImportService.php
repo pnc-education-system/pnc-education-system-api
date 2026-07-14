@@ -208,7 +208,7 @@ class StudentImportService
                 $totalFailed += count($chunk);
 
                 Log::error('Import chunk failed', [
-                    'import_log_id' => $importLogId,
+                    'import_log_id' => $importLog->id,
                     'chunk'         => $chunkIndex + 1,
                     'error'         => $e->getMessage(),
                 ]);
@@ -220,7 +220,7 @@ class StudentImportService
             'status'=>$totalFailed > 0 ? 'Completed':'Completed',
         ]);
         return[
-            'import_log_id'=>$importLogId,
+            'import_log_id'=>$importLog->id,
             'total_rows'=>count($rows),
             'imported'=>$totalSuccess,
             'failed'=>$totalFailed,
