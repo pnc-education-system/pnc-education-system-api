@@ -55,10 +55,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Management', 'description' => 'Read-only reporting access']
         );
 
-        // Admin gets all
         $adminRole->permissions()->sync(Permission::pluck('id'));
 
-        // Staff permissions
         $staffPerms = Permission::whereIn('slug', [
             'students.view', 'students.edit', 'students.import',
             'enrollment.manage', 'cards.generate',

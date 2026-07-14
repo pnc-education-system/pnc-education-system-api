@@ -74,8 +74,6 @@ class AuthController extends Controller
             }
 
             $user = JWTAuth::user();
-            // Invalidate access token.
-            // Some setups require forcing the guard to jwt.
             JWTAuth::invalidate($token);
 
 
@@ -107,8 +105,6 @@ class AuthController extends Controller
             return $this->error('Validation failed', 422, $validator->errors());
         }
 
-        // Tokens are stored as SHA-256 hashes in refresh_tokens.token.
-        // Normalize incoming refresh token to the stored value.
         $incomingToken = (string) $request->refresh_token;
         $storedToken = strlen($incomingToken) === 64 && ctype_xdigit($incomingToken)
             ? $incomingToken
@@ -202,10 +198,26 @@ class AuthController extends Controller
             'created_at' => now(),
         ]);
 
+        // Send email
+        \Log::info('Attempting to send password reset email to: ' . $user->email);
+        try {
+            \Mail::raw(
+                "Click the link below to reset your password:\n\n" .
+                "http://localhost:5173/reset-password?email=" . $user->email . "&reset_token=" . $token,
+                function ($message) use ($user) {
+                    $message->to($user->email)
+                        ->subject('Reset Password Request');
+                }
+            );
+            \Log::info('Password reset email sent successfully to: ' . $user->email);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send password reset email: ' . $e->getMessage());
+        }
+
         return response()->json([
             'status' => 'success',
-            'message' => 'If the email exists, a reset token has been sent',
-            'reset_token' => $token,
+            'message' => 'If the email exists, a reset link has been sent',
+            'reset_token' => $token, // For testing purposes
         ], 200);
     }
 

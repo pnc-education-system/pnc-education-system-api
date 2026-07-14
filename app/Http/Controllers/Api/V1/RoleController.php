@@ -13,13 +13,51 @@ use Illuminate\Support\Facades\Validator;
 class RoleController extends Controller
 {
     use ApiResponse, AuditableLogger;
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255|unique:roles,slug',
+            'description' => 'nullable|string',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|exists:permissions,slug',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation failed', 422, $validator->errors()->toArray());
+        }
+
+        $role = Role::create([
+            'name' => $request->name,
+            'slug' => $request->slug ?? \Illuminate\Support\Str::slug($request->name),
+            'description' => $request->description,
+        ]);
+
+        if ($request->exists('permissions')) {
+            $permissionIds = Permission::whereIn('slug', $request->permissions)->pluck('id');
+            $role->permissions()->sync($permissionIds);
+        }
+
+        $this->logAudit($role, 'role_created', $request, [], $role->toArray());
+
+        return response()->json(
+            [
+                'status' => 'success',
+                'message' => 'Role created successfully',
+                'data' => $role->load('permissions'),
+            ],
+            201
+        );
+    }
+
     public function index(Request $request)
     {
         return response()->json(
             [
                 'status' => 'success',
                 'message' => 'Roles retrieved successfully',
-                'data' => Role::with('permissions')->get(),
+                'data' => Role::with('permissions')->withCount('users')->get(),
             ],
             200
         );
@@ -27,7 +65,7 @@ class RoleController extends Controller
 
     public function show($id)
     {
-        $role = Role::with('permissions')->find($id);
+        $role = Role::with('permissions')->withCount('users')->find($id);
         if (!$role) {
             return $this->error('Role not found', 404);
         }
@@ -68,6 +106,11 @@ class RoleController extends Controller
         }
 
         $role->save();
+
+        if ($request->exists('permissions')) {
+            $permissionIds = Permission::whereIn('slug', $request->permissions)->pluck('id');
+            $role->permissions()->sync($permissionIds);
+        }
 
         $this->logAudit($role, 'role_updated', $request, $oldValues, $role->toArray());
 
