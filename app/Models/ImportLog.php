@@ -12,8 +12,9 @@ class ImportLog extends Model
         'file_name',
         'imported_by',
         'total_rows',
-        'success_rows',
-        'failed_rows',
+        'success_count',
+        'error_count',
+        'status',
     ];
 
     public function importer(): BelongsTo
