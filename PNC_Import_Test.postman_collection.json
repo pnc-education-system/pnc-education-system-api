@@ -1,0 +1,107 @@
+{
+  "info": {
+    "name": "PNC Import Test",
+    "description": "Test full import flow: preview then commit.\n\nSteps:\n1. Run Step 1 (auto-saves token)\n2. Step 2 — click Select Files, choose the .xlsx file\n3. Step 3 — paste rows array from Step 2 into the body, set file_name",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api/v1"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Step 1 - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.access_token) {",
+              "    pm.collectionVariables.set('access_token', jsonData.access_token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@pnc.edu.kh\",\n  \"password\": \"Admin@123456\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Step 2 - Preview File",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [{
+            "key": "file",
+            "type": "file",
+            "src": ""
+          }]
+        },
+        "url": {
+          "raw": "{{base_url}}/imports/preview",
+          "host": ["{{base_url}}"],
+          "path": ["imports", "preview"]
+        }
+      },
+      "description": "Click 'Select Files' and choose your .xlsx file. Copy the 'rows' array from the response."
+    },
+    {
+      "name": "Step 3 - Commit Import",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file_name\": \"filename.xlsx\",\n  \"rows\": [\n    PASTE_ROWS_HERE\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/imports/commit",
+          "host": ["{{base_url}}"],
+          "path": ["imports", "commit"]
+        }
+      },
+      "description": "Replace 'filename.xlsx' with your file name. Replace PASTE_ROWS_HERE with the rows array from Step 2."
+    },
+    {
+      "name": "Step 4 - Check DB Count",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{access_token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/students/count",
+          "host": ["{{base_url}}"],
+          "path": ["students", "count"]
+        }
+      },
+      "description": "Optional: checks how many students are in the database."
+    }
+  ]
+}
