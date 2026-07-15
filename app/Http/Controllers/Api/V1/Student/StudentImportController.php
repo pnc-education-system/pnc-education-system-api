@@ -93,7 +93,7 @@ class StudentImportController extends Controller
             'status' => 'success',
             'message' => $message,
             'data' => $data,
-        ], 200);
+        ], 201);
     }
 
     private function errorResponse(string $message, string $error, int $statusCode = 500): JsonResponse

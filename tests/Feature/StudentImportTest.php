@@ -98,4 +98,47 @@ class StudentImportTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonPath('data.imported', 1);
     }
+
+    public function test_import_requires_authentication(): void
+    {
+        $response = $this->postJson('/api/v1/import', [
+            'file_name' => 'test.xlsx',
+            'rows' => [['student_id_no' => 'ST001', 'full_name' => 'Test']],
+        ]);
+        $response->assertStatus(401);
+    }
+
+    public function test_import_requires_file_name(): void
+    {
+        $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+            ->postJson('/api/v1/import', ['rows' => []]);
+        $response->assertStatus(422);
+    }
+
+    public function test_import_requires_rows(): void
+    {
+        $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+            ->postJson('/api/v1/import', ['file_name' => 'test.xlsx']);
+        $response->assertStatus(422);
+    }
+
+    public function test_import_accepts_valid_data(): void
+    {
+        $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+            ->postJson('/api/v1/import', [
+                'file_name' => 'test.xlsx',
+                'rows' => [[
+                    'student_id_no'      => 'ST002',
+                    'full_name'          => 'Test Student 2',
+                    'gender'             => 'Female',
+                    'dob'                => '2001-01-01',
+                    'selection_batch_id' => 1,
+                    'enrollment_status'  => 'Pending',
+                    'intake_year'        => 2025,
+                ]],
+            ]);
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Import completed successfully');
+    }
 }
