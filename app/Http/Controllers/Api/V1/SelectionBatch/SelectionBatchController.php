@@ -17,7 +17,6 @@ class SelectionBatchController extends Controller
     {
         $query = SelectionBatch::withCount('students')->with('creator');
 
-        // Filter by year if requested
         if ($request->has('year')) {
             $query->where('year', $request->year);
         }
@@ -114,8 +113,6 @@ class SelectionBatchController extends Controller
         if (!$batch) {
             return $this->error('Selection batch not found', 404);
         }
-
-        // Check if batch has students
         if ($batch->students()->count() > 0) {
             return $this->error('Cannot delete selection batch with associated students', 400);
         }

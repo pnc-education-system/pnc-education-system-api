@@ -40,10 +40,6 @@ class ImportController extends Controller
         $this->validationService = $validationService;
     }
 
-    /**
-     * POST /api/v1/imports
-     * Upload an Excel file, validate it, and create an import log with validation errors.
-     */
     public function upload(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -80,10 +76,8 @@ class ImportController extends Controller
                 );
             }
 
-            // Run validation on the parsed rows
             $validationResult = $this->validationService->validate($data);
 
-            // Create the import log entry
             $importLog = ImportLog::create([
                 'file_name'     => $file->getClientOriginalName(),
                 'file_path'     => $file->getRealPath(),
@@ -93,8 +87,6 @@ class ImportController extends Controller
                 'error_count'   => $validationResult['summary']['invalid'],
                 'status'        => 'Pending',
             ]);
-
-            // Store validation errors
             if (!empty($validationResult['invalidRows'])) {
                 $errorRecords = [];
                 foreach ($validationResult['invalidRows'] as $invalidRow) {
@@ -107,7 +99,7 @@ class ImportController extends Controller
                         ];
                     }
                 }
-                
+
                 try {
                     ImportError::insert($errorRecords);
                     Log::info('Import errors stored successfully', [
@@ -145,11 +137,6 @@ class ImportController extends Controller
             return $this->error('The uploaded file could not be processed. Please verify the file is a valid .xlsx format and try again.', 422);
         }
     }
-
-    /**
-     * GET /api/v1/imports
-     * Returns paginated import history with counts, author, timestamp, and status.
-     */
     public function index(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -194,11 +181,6 @@ class ImportController extends Controller
             ],
         ], 200);
     }
-
-    /**
-     * GET /api/v1/imports/{import}
-     * Returns a single import log with its errors.
-     */
     public function show(int $import): JsonResponse
     {
         $log = ImportLog::with(['importer:id,name,email', 'errors'])->find($import);
@@ -232,11 +214,6 @@ class ImportController extends Controller
             ],
         ], 200);
     }
-
-    /**
-     * POST /api/v1/imports/{import}/commit
-     * Commit (insert) validated rows from a previously uploaded import.
-     */
     public function commit(int $import, Request $request): JsonResponse
     {
         $log = ImportLog::find($import);
@@ -278,11 +255,6 @@ class ImportController extends Controller
             return $this->error($e->getMessage(), 400);
         }
     }
-
-    /**
-     * GET /api/v1/imports/{import}/errors
-     * Returns the validation/commit errors for a specific import.
-     */
     public function errors(int $import): JsonResponse
     {
         $log = ImportLog::with('errors')->find($import);
