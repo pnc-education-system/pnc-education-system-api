@@ -18,9 +18,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('auth/me', [AuthController::class, 'me']);
-
         Route::get('dashboard/enrollment', [DashboardController::class, 'enrollmentStats']);
-
         Route::middleware('permission:users.manage')->group(function () {
             Route::apiResource('users', UserController::class);
             Route::patch('users/{user}/toggle', [UserController::class, 'toggle']);
@@ -45,11 +43,9 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:students.view')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
         });
-
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
         });
-
         Route::middleware('permission:batches.manage')->group(function () {
             Route::get('selection-batches', [SelectionBatchController::class, 'index']);
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
