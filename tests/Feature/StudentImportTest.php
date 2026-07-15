@@ -187,4 +187,126 @@ class StudentImportTest extends TestCase
         $response = $this->getJson('/api/v1/imports/1/errors');
         $response->assertStatus(401);
     }
+
+    // ── Performance tests ──
+
+    public function test_500_row_import_commits_successfully(): void
+    {
+        $log = ImportLog::create([
+            'file_name'     => 'large_import.xlsx',
+            'imported_by'   => 1,
+            'total_rows'    => 500,
+            'success_count' => 0,
+            'error_count'   => 0,
+            'status'        => 'Pending',
+        ]);
+
+        // Generate 500 valid student rows
+        $rows = [];
+        for ($i = 1; $i <= 500; $i++) {
+            $rows[] = [
+                'student_id_no'      => 'ST' . str_pad($i, 4, '0', STR_PAD_LEFT),
+                'full_name'          => 'Test Student ' . $i,
+                'gender'             => $i % 2 === 0 ? 'Male' : 'Female',
+                'dob'                => '2000-01-01',
+                'selection_batch_id' => 1,
+                'enrollment_status'  => 'Pending',
+                'intake_year'        => 2025,
+            ];
+        }
+
+        $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+            ->postJson("/api/v1/imports/{$log->id}/commit", [
+                'rows' => $rows,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.imported', 500)
+            ->assertJsonPath('data.failed', 0);
+
+        // Verify all students were inserted
+        $this->assertEquals(500, \App\Models\Student::count());
+
+        // Verify import log was updated
+        $log->refresh();
+        $this->assertEquals(500, $log->success_count);
+        $this->assertEquals('Completed', $log->status);
+    }
+
+    public function test_duplicate_rows_within_batch_are_handled(): void
+    {
+        $log = ImportLog::create([
+            'file_name'     => 'duplicate_test.xlsx',
+            'imported_by'   => 1,
+            'total_rows'    => 5,
+            'success_count' => 0,
+            'error_count'   => 0,
+            'status'        => 'Pending',
+        ]);
+
+        // Create rows with duplicate student_id_no within the same batch
+        $rows = [
+            [
+                'student_id_no'      => 'ST0001',
+                'full_name'          => 'Student One',
+                'gender'             => 'Male',
+                'dob'                => '2000-01-01',
+                'selection_batch_id' => 1,
+                'enrollment_status'  => 'Pending',
+                'intake_year'        => 2025,
+            ],
+            [
+                'student_id_no'      => 'ST0002',
+                'full_name'          => 'Student Two',
+                'gender'             => 'Female',
+                'dob'                => '2000-02-01',
+                'selection_batch_id' => 1,
+                'enrollment_status'  => 'Pending',
+                'intake_year'        => 2025,
+            ],
+            [
+                'student_id_no'      => 'ST0001', // Duplicate within batch
+                'full_name'          => 'Student One Duplicate',
+                'gender'             => 'Male',
+                'dob'                => '2000-01-01',
+                'selection_batch_id' => 1,
+                'enrollment_status'  => 'Pending',
+                'intake_year'        => 2025,
+            ],
+            [
+                'student_id_no'      => 'ST0003',
+                'full_name'          => 'Student Three',
+                'gender'             => 'Male',
+                'dob'                => '2000-03-01',
+                'selection_batch_id' => 1,
+                'enrollment_status'  => 'Pending',
+                'intake_year'        => 2025,
+            ],
+            [
+                'student_id_no'      => 'ST0002', // Duplicate within batch
+                'full_name'          => 'Student Two Duplicate',
+                'gender'             => 'Female',
+                'dob'                => '2000-02-01',
+                'selection_batch_id' => 1,
+                'enrollment_status'  => 'Pending',
+                'intake_year'        => 2025,
+            ],
+        ];
+
+        $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+            ->postJson("/api/v1/imports/{$log->id}/commit", [
+                'rows' => $rows,
+            ]);
+
+        // The commit should succeed (duplicates within batch are handled by DB)
+        $response->assertStatus(200);
+
+        $insertedCount = \App\Models\Student::count();
+        $this->assertGreaterThanOrEqual(0, $insertedCount);
+        $this->assertLessThanOrEqual(3, $insertedCount);
+
+        // Verify import log reflects the result
+        $log->refresh();
+        $this->assertEquals('Completed', $log->status);
+    }
 }

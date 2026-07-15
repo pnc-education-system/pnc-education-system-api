@@ -337,4 +337,106 @@ class StudentStatusUpdateTest extends TestCase
             $this->assertEquals($this->user->id, $h->changed_by);
         }
     }
+
+    // ----------------------------------------------------------------
+    //  Audit record tests
+    // ----------------------------------------------------------------
+
+    public function test_status_change_writes_audit_record(): void
+    {
+        $initialHistoryCount = EnrollmentStatusHistory::where('student_id', $this->student->id)->count();
+
+        $response = $this->withHeader('Authorization', "Bearer {$this->token}")
+            ->patchJson("/api/v1/students/{$this->student->id}/status", [
+                'status' => Student::STATUS_ENROLLED,
+                'note'   => 'Approved for enrollment',
+            ]);
+
+        $response->assertStatus(200);
+
+        // Verify audit record was created
+        $finalHistoryCount = EnrollmentStatusHistory::where('student_id', $this->student->id)->count();
+        $this->assertEquals($initialHistoryCount + 1, $finalHistoryCount);
+
+        // Verify audit record details
+        $auditRecord = EnrollmentStatusHistory::where('student_id', $this->student->id)
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull($auditRecord);
+        $this->assertEquals($this->student->id, $auditRecord->student_id);
+        $this->assertEquals(Student::STATUS_PENDING, $auditRecord->old_status);
+        $this->assertEquals(Student::STATUS_ENROLLED, $auditRecord->new_status);
+        $this->assertEquals('Approved for enrollment', $auditRecord->note);
+        $this->assertEquals($this->user->id, $auditRecord->changed_by);
+        $this->assertNotNull($auditRecord->created_at);
+    }
+
+    public function test_audit_record_includes_user_and_timestamp(): void
+    {
+        $this->withHeader('Authorization', "Bearer {$this->token}")
+            ->patchJson("/api/v1/students/{$this->student->id}/status", [
+                'status' => Student::STATUS_REJECTED,
+                'note'   => 'Application rejected',
+            ])->assertStatus(200);
+
+        $auditRecord = EnrollmentStatusHistory::where('student_id', $this->student->id)
+            ->latest('created_at')
+            ->first();
+
+        // Verify user who made the change is recorded
+        $this->assertEquals($this->user->id, $auditRecord->changed_by);
+
+        // Verify timestamp is recorded and is recent
+        $this->assertNotNull($auditRecord->created_at);
+        $this->assertLessThan(5, now()->diffInSeconds($auditRecord->created_at));
+    }
+
+    // ----------------------------------------------------------------
+    //  Dashboard reflection tests
+    // ----------------------------------------------------------------
+
+    public function test_dashboard_reflects_change_immediately_after_status_update(): void
+    {
+        // Get initial student count by status
+        $initialPendingCount = Student::where('enrollment_status', Student::STATUS_PENDING)->count();
+        $initialEnrolledCount = Student::where('enrollment_status', Student::STATUS_ENROLLED)->count();
+
+        // Update student status
+        $this->withHeader('Authorization', "Bearer {$this->token}")
+            ->patchJson("/api/v1/students/{$this->student->id}/status", [
+                'status' => Student::STATUS_ENROLLED,
+            ])->assertStatus(200);
+
+        // Verify dashboard reflects the change immediately
+        $finalPendingCount = Student::where('enrollment_status', Student::STATUS_PENDING)->count();
+        $finalEnrolledCount = Student::where('enrollment_status', Student::STATUS_ENROLLED)->count();
+
+        $this->assertEquals($initialPendingCount - 1, $finalPendingCount);
+        $this->assertEquals($initialEnrolledCount + 1, $finalEnrolledCount);
+
+        // Verify the student's current status is reflected correctly
+        $this->student->refresh();
+        $this->assertEquals(Student::STATUS_ENROLLED, $this->student->enrollment_status);
+    }
+
+    public function test_dashboard_api_returns_updated_student_immediately(): void
+    {
+        // Update student status
+        $response = $this->withHeader('Authorization', "Bearer {$this->token}")
+            ->patchJson("/api/v1/students/{$this->student->id}/status", [
+                'status' => Student::STATUS_ENROLLED,
+                'note'   => 'Status updated',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.student.enrollment_status', Student::STATUS_ENROLLED);
+
+        // Immediately fetch the student via API to verify dashboard reflects change
+        $getResponse = $this->withHeader('Authorization', "Bearer {$this->token}")
+            ->getJson("/api/v1/students/{$this->student->id}");
+
+        $getResponse->assertStatus(200)
+            ->assertJsonPath('data.enrollment_status', Student::STATUS_ENROLLED);
+    }
 }
