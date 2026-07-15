@@ -11,9 +11,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             PermissionSeeder::class,
+            // Ensure we use the correctly-updated seeder (avoid casing mismatches).
             RolePermissionSeeder::class,
             UserSeeder::class,
             SettingSeeder::class,
         ]);
     }
 }
+
