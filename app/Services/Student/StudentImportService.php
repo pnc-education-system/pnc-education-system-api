@@ -202,6 +202,21 @@ class StudentImportService
                 });
             } catch (\Exception $e) {
                 $totalFailed += count($chunk);
+
+                // Record each failed row as an ImportError for visibility
+                $errorRecords = [];
+                $startRow = ($chunkIndex * $chunkSize) + 1;
+                foreach ($chunk as $offset => $row) {
+                    $studentId = $row['student_id_no'] ?? 'N/A';
+                    $errorRecords[] = [
+                        'import_log_id' => $importLog->id,
+                        'row_number'    => $startRow + $offset,
+                        'field'         => 'system',
+                        'error_message' => 'Failed to import student "' . $studentId . '": ' . $e->getMessage(),
+                    ];
+                }
+                ImportError::insert($errorRecords);
+
                 Log::error('Import chunk failed', [
                     'import_log_id' => $importLog->id,
                     'chunk'         => $chunkIndex + 1,
@@ -269,6 +284,20 @@ class StudentImportService
             }catch(\Exception $e){
                 $totalFailed += count($chunk);
 
+                // Record each failed row as an ImportError for visibility
+                $errorRecords = [];
+                $startRow = ($chunkIndex * $chunkSize) + 1;
+                foreach ($chunk as $offset => $row) {
+                    $studentId = $row['student_id_no'] ?? 'N/A';
+                    $errorRecords[] = [
+                        'import_log_id' => $importLog->id,
+                        'row_number'    => $startRow + $offset,
+                        'field'         => 'system',
+                        'error_message' => 'Failed to import student "' . $studentId . '": ' . $e->getMessage(),
+                    ];
+                }
+                ImportError::insert($errorRecords);
+
                 Log::error('Import chunk failed', [
                     'import_log_id' => $importLog->id,
                     'chunk'         => $chunkIndex + 1,
@@ -279,7 +308,7 @@ class StudentImportService
         $importLog->update([
             'success_count' =>$totalSuccess,
             'error_count'=>$totalFailed,
-            'status'=>$totalFailed > 0 ? 'Completed':'Completed',
+            'status' => 'Completed',
         ]);
         return[
             'import_log_id'=>$importLog->id,

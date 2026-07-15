@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ImportLog;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\SelectionBatch;
@@ -46,9 +47,18 @@ class PerformanceTest extends TestCase
             ];
         }
 
+        // Create a pending import log to commit against
+        $log = ImportLog::create([
+            'file_name'     => 'bulk-test.xlsx',
+            'imported_by'   => 1,
+            'total_rows'    => 500,
+            'success_count' => 0,
+            'error_count'   => 0,
+            'status'        => 'Pending',
+        ]);
+
         $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
-            ->postJson('/api/v1/imports/commit', [
-                'file_name' => 'bulk-test.xlsx',
+            ->postJson("/api/v1/imports/{$log->id}/commit", [
                 'rows' => $rows,
             ]);
 

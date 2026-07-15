@@ -10,6 +10,7 @@ class ImportLog extends Model
 {
     protected $fillable = [
         'file_name',
+        'file_path',
         'total_rows',
         'success_count',
         'error_count',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Student;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Http\Requests\StudentFilterRequest;
+use App\Http\Requests\UpdateStudentStatusRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -48,5 +49,51 @@ class StudentController extends Controller
                 'to' => $students->lastItem(),
             ],
         ], 200);
+    }
+
+    public function updateStatus(UpdateStudentStatusRequest $request, $id)
+    {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return $this->error('Student not found', 404);
+        }
+
+        $newStatus = $request->input('status');
+        $note      = $request->input('note');
+
+        if (!Student::isValidTransition($student->enrollment_status, $newStatus)) {
+            $allowed = Student::validTransitionsFrom($student->enrollment_status);
+
+            return $this->error(
+                "Invalid status transition from '{$student->enrollment_status}'. " .
+                (empty($allowed)
+                    ? 'No further transitions are allowed from this status.'
+                    : "Allowed transitions: " . implode(', ', $allowed) . '.'),
+                422
+            );
+        }
+
+        try {
+            $history = $student->transitionStatus($newStatus, $note);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Student status updated successfully',
+                'data'    => [
+                    'student' => new StudentResource($student->fresh()->load('selectionBatch')),
+                    'history' => [
+                        'id'          => $history->id,
+                        'old_status'  => $history->old_status,
+                        'new_status'  => $history->new_status,
+                        'note'        => $history->note,
+                        'changed_by'  => $history->changed_by,
+                        'created_at'  => $history->created_at,
+                    ],
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return $this->error('Failed to update student status: ' . $e->getMessage(), 500);
+        }
     }
 }
