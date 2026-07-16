@@ -131,7 +131,7 @@ class ImportValidationService
             'province' => ['nullable', 'string', 'max:100'],
             'high_school' => ['nullable', 'string', 'max:255'],
             'selection_batch_id' => ['required', 'integer'],
-            'enrollment_status' => ['required', 'in:Pending,Enrolled,Rejected,Graduated,Dropped'],
+            'enrollment_status' => ['sometimes', 'in:Pending,Enrolled,Rejected,Graduated,Dropped'],
             'intake_year' => ['required', 'integer', 'digits:4'],
         ];
     }
@@ -153,8 +153,7 @@ class ImportValidationService
             'email.max' => 'Email must not exceed 255 characters.',
             'selection_batch_id.required' => 'Selection batch is required.',
             'selection_batch_id.integer' => 'Selection batch ID must be an integer.',
-            'enrollment_status.required' => 'Enrollment status is required.',
-            'enrollment_status.max' => 'Enrollment status must not exceed 50 characters.',
+            'enrollment_status.in' => 'Enrollment status must be one of: Pending, Enrolled, Rejected, Graduated, Dropped.',
             'intake_year.required' => 'Intake year is required.',
             'intake_year.integer' => 'Intake year must be an integer.',
             'intake_year.digits' => 'Intake year must be a 4-digit year.',

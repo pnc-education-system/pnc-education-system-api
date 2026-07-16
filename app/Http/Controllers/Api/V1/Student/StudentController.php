@@ -96,4 +96,37 @@ class StudentController extends Controller
             return $this->error('Failed to update student status: ' . $e->getMessage(), 500);
         }
     }
+
+    public function update(Request $request, $id)
+    {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return $this->error('Student not found', 404);
+        }
+
+        try {
+            $student->update($request->only([
+                'student_id_no',
+                'full_name',
+                'gender',
+                'dob',
+                'phone',
+                'email',
+                'province',
+                'high_school',
+                'selection_batch_id',
+                'intake_year',
+                'photo_path',
+            ]));
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Student updated successfully',
+                'data'    => new StudentResource($student->fresh()->load('selectionBatch')),
+            ], 200);
+        } catch (\Exception $e) {
+            return $this->error('Failed to update student: ' . $e->getMessage(), 500);
+        }
+    }
 }
