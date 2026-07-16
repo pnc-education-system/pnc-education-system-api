@@ -163,7 +163,7 @@ class StudentImportService
         return implode('; ', $messages);
     }
 
-    public function commitById(ImportLog $importLog, array $rows, int $userId): array
+    public function commitById(ImportLog $importLog, array $rows, int $userId, ?int $selectionBatchId = null): array
     {
         $importLog->update([
             'total_rows'    => count($rows),
@@ -177,7 +177,7 @@ class StudentImportService
 
         foreach ($chunks as $chunkIndex => $chunk) {
             try {
-                DB::transaction(function () use ($chunk, &$totalSuccess, $userId) {
+                DB::transaction(function () use ($chunk, &$totalSuccess, $userId, $selectionBatchId) {
                     $insertData = [];
                     foreach ($chunk as $row) {
                         $insertData[] = [
@@ -189,7 +189,7 @@ class StudentImportService
                             'email'              => $row['email'] ?? null,
                             'province'           => $row['province'] ?? null,
                             'high_school'        => $row['high_school'] ?? null,
-                            'selection_batch_id' => $row['selection_batch_id'] ?? null,
+                            'selection_batch_id' => $selectionBatchId ?? $row['selection_batch_id'] ?? null,
                             'enrollment_status'  => $row['enrollment_status'] ?? 'Pending',
                             'intake_year'        => $row['intake_year'],
                             'created_by'         => $userId,

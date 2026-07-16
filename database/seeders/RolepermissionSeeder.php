@@ -61,7 +61,8 @@ class RolePermissionSeeder extends Seeder
         $adminRole->permissions()->sync(Permission::pluck('id'));
 
         $staffPerms = Permission::whereIn('slug', [
-            'students.view', 'students.create', 'students.edit', 'students.import',
+            'students.view', 'students.edit', 'students.import',
+            'batches.manage',
             'enrollment.manage', 'cards.generate',
             'records.view', 'records.manage',
             'evaluation.view', 'evaluation.manage', 'evaluation.submit',

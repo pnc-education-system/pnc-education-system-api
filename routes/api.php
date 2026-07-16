@@ -43,20 +43,17 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:students.view')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
         });
-
-        Route::middleware('permission:students.create')->group(function () {
-            Route::post('students', [StudentController::class, 'store']);
+        Route::middleware('permission:students.edit')->group(function () {
+            Route::put('students/{id}', [StudentController::class, 'update']);
         });
-
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
         });
-
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);
+        Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
 
         Route::middleware('permission:batches.manage')->group(function () {
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
-            Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
         });
