@@ -20,6 +20,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Create Students',     'slug' => 'students.create',     'module' => 'students'],
             ['name' => 'Edit Students',        'slug' => 'students.edit',       'module' => 'students'],
             ['name' => 'Import Students',      'slug' => 'students.import',     'module' => 'students'],
+            // Batches
+            ['name' => 'Manage Selection Batches', 'slug' => 'batches.manage',    'module' => 'batches'],
             // Enrollment
             ['name' => 'Manage Enrollment',    'slug' => 'enrollment.manage',   'module' => 'enrollment'],
             // Cards

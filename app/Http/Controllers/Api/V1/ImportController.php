@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Imports\StudentsPreviewImport;
+use App\Models\ImportError;
 use App\Models\ImportLog;
+use App\Services\Student\ImportValidationService;
 use App\Services\Student\StudentImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +21,8 @@ class ImportController extends Controller
 
     private StudentImportService $importService;
 
+    private ImportValidationService $validationService;
+
     private array $requiredColumns = [
         'student_id_no',
         'full_name',
@@ -28,15 +32,111 @@ class ImportController extends Controller
         'intake_year',
     ];
 
-    public function __construct(StudentImportService $importService)
-    {
+    public function __construct(
+        StudentImportService $importService,
+        ImportValidationService $validationService
+    ) {
         $this->importService = $importService;
+        $this->validationService = $validationService;
     }
 
-    /**
-     * GET /api/v1/imports
-     * Returns paginated import history with counts, author, timestamp, and status.
-     */
+    public function upload(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:xlsx|max:' . config('import.max_file_size_kb', 10240),
+        ], [
+            'file.required' => 'No file was uploaded. Please attach a .xlsx file to proceed.',
+            'file.mimes'    => 'Invalid file format. Only .xlsx (Excel) files are accepted.',
+            'file.max'      => 'File size exceeds the maximum allowed size of ' . (config('import.max_file_size_kb', 10240) / 1024) . ' MB.',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first('file'), 422);
+        }
+
+        $file = $request->file('file');
+
+        if ($file->getSize() === 0) {
+            return $this->error('The uploaded file is empty. Please upload a file containing student data.', 422);
+        }
+
+        try {
+            $rows = Excel::toArray(new StudentsPreviewImport, $file);
+            $data = $rows[0] ?? [];
+
+            if (empty($data)) {
+                return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
+            }
+
+            $missingColumns = $this->validateHeaders($data[0]);
+            if (!empty($missingColumns)) {
+                return $this->error(
+                    'Missing required columns: ' . implode(', ', $missingColumns) . '. The file must contain: student_id_no, full_name, gender, dob, selection_batch_id, intake_year.',
+                    422
+                );
+            }
+
+            $validationResult = $this->validationService->validate($data);
+
+            $importLog = ImportLog::create([
+                'file_name'     => $file->getClientOriginalName(),
+                'file_path'     => $file->getRealPath(),
+                'imported_by'   => auth()->id(),
+                'total_rows'    => $validationResult['summary']['total'],
+                'success_count' => 0,
+                'error_count'   => $validationResult['summary']['invalid'],
+                'status'        => 'Pending',
+            ]);
+            if (!empty($validationResult['invalidRows'])) {
+                $errorRecords = [];
+                foreach ($validationResult['invalidRows'] as $invalidRow) {
+                    foreach ($invalidRow['errors'] as $field => $fieldErrors) {
+                        $errorRecords[] = [
+                            'import_log_id' => $importLog->id,
+                            'row_number'    => $invalidRow['row'],
+                            'field'         => $field,
+                            'error_message' => implode(', ', $fieldErrors),
+                        ];
+                    }
+                }
+
+                try {
+                    ImportError::insert($errorRecords);
+                    Log::info('Import errors stored successfully', [
+                        'import_log_id' => $importLog->id,
+                        'error_count' => count($errorRecords),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to store import errors', [
+                        'import_log_id' => $importLog->id,
+                        'error' => $e->getMessage(),
+                        'error_records' => $errorRecords,
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'File uploaded and validated successfully',
+                'data'    => [
+                    'import_log_id'  => $importLog->id,
+                    'file_name'      => $file->getClientOriginalName(),
+                    'total_rows'     => $validationResult['summary']['total'],
+                    'valid_rows'     => $validationResult['summary']['valid'],
+                    'invalid_rows'   => $validationResult['summary']['invalid'],
+                    'validation'     => $validationResult,
+                    'rows'           => $data,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('File upload and validation failed', [
+                'error' => $e->getMessage(),
+                'file'  => $request->file('file')?->getClientOriginalName(),
+            ]);
+
+            return $this->error('The uploaded file could not be processed. Please verify the file is a valid .xlsx format and try again.', 422);
+        }
+    }
     public function index(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -45,7 +145,6 @@ class ImportController extends Controller
         $query = ImportLog::with(['importer:id,name,email'])
             ->orderByDesc('created_at');
 
-        // Optional filter by status
         if ($status && in_array($status, ['Pending', 'Processing', 'Completed', 'Failed'])) {
             $query->where('status', $status);
         }
@@ -82,14 +181,9 @@ class ImportController extends Controller
             ],
         ], 200);
     }
-
-    /**
-     * GET /api/v1/imports/{id}
-     * Returns a single import log with its errors.
-     */
-    public function show(int $id): JsonResponse
+    public function show(int $import): JsonResponse
     {
-        $log = ImportLog::with(['importer:id,name,email', 'errors'])->find($id);
+        $log = ImportLog::with(['importer:id,name,email', 'errors'])->find($import);
 
         if (!$log) {
             return $this->error('Import log not found', 404);
@@ -120,13 +214,16 @@ class ImportController extends Controller
             ],
         ], 200);
     }
-
-    public function commitById($importLog, Request $request): JsonResponse
+    public function commit(int $import, Request $request): JsonResponse
     {
-        $log = \App\Models\ImportLog::find($importLog);
+        $log = ImportLog::find($import);
 
         if (!$log) {
             return $this->error('Import log not found', 404);
+        }
+
+        if ($log->status !== 'Pending') {
+            return $this->error('Import has already been processed. Current status: ' . $log->status, 422);
         }
 
         $validator = Validator::make($request->all(), [
@@ -150,100 +247,39 @@ class ImportController extends Controller
                 'data'   => $result,
             ]);
         } catch (\Exception $e) {
-            Log::error('Import commit by ID failed', [
-                'import_log_id' => $importLog,
+            Log::error('Import commit failed', [
+                'import_log_id' => $import,
                 'error'         => $e->getMessage(),
             ]);
 
             return $this->error($e->getMessage(), 400);
         }
     }
-
-    public function preview(Request $request): JsonResponse
+    public function errors(int $import): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'file' => 'required|file|mimes:xlsx|max:' . config('import.max_file_size_kb', 10240),
-        ], [
-            'file.required' => 'No file was uploaded. Please attach a .xlsx file to proceed.',
-            'file.mimes'    => 'Invalid file format. Only .xlsx (Excel) files are accepted.',
-            'file.max'      => 'File size exceeds the maximum allowed size of ' . (config('import.max_file_size_kb', 10240) / 1024) . ' MB.',
+        $log = ImportLog::with('errors')->find($import);
+
+        if (!$log) {
+            return $this->error('Import log not found', 404);
+        }
+
+        $errors = $log->errors->map(fn (ImportError $e) => [
+            'id'            => $e->id,
+            'row_number'    => $e->row_number,
+            'field'         => $e->field,
+            'error_message' => $e->error_message,
         ]);
 
-        if ($validator->fails()) {
-            return $this->error($validator->errors()->first('file'), 422);
-        }
-
-        $file = $request->file('file');
-
-        if ($file->getSize() === 0) {
-            return $this->error('The uploaded file is empty. Please upload a file containing student data.', 422);
-        }
-
-        try {
-            $rows = Excel::toArray(new StudentsPreviewImport, $file);
-            $data = $rows[0] ?? [];
-
-            if (empty($data)) {
-                return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
-            }
-
-            $missingColumns = $this->validateHeaders($data[0]);
-            if (!empty($missingColumns)) {
-                return $this->error(
-                    'Missing required columns: ' . implode(', ', $missingColumns) . '. The file must contain: student_id_no, full_name, gender, dob, selection_batch_id, intake_year.',
-                    422
-                );
-            }
-
-            return response()->json([
-                'status' => 'success',
-                'data'   => [
-                    'total_rows' => count($data),
-                    'columns'    => array_keys($data[0]),
-                    'rows'       => $data,
-                ],
-            ]);
-        } catch (\Exception $e) {
-            Log::error('File preview failed', [
-                'error' => $e->getMessage(),
-                'file'  => $request->file('file')?->getClientOriginalName(),
-            ]);
-
-            return $this->error('The uploaded file could not be read. Please verify the file is a valid .xlsx format and try again.', 422);
-        }
-    }
-
-    public function commit(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'rows'      => 'required|array',
-            'rows.*'    => 'array',
-            'file_name' => 'required|string|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return $this->error($validator->errors()->first(), 422);
-        }
-
-        try {
-            $result = $this->importService->commit(
-                $request->input('rows'),
-                $request->input('file_name'),
-                auth()->id()
-            );
-
-            return response()->json([
-                'status' => 'success',
-                'data'   => $result,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Import commit failed', [
-                'file_name' => $request->input('file_name'),
-                'error'     => $e->getMessage(),
-            ]);
-
-            return $this->error($e->getMessage(), 400);
-        }
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Import errors retrieved successfully',
+            'data'    => [
+                'import_log_id' => $log->id,
+                'file_name'     => $log->file_name,
+                'total_errors'  => $errors->count(),
+                'errors'        => $errors,
+            ],
+        ], 200);
     }
 
     private function validateHeaders(array $firstRow): array
@@ -251,5 +287,16 @@ class ImportController extends Controller
         $fileColumns = array_keys($firstRow);
 
         return array_diff($this->requiredColumns, $fileColumns);
+    }
+
+    private function formatErrors(array $errors): string
+    {
+        $messages = [];
+
+        foreach ($errors as $field => $fieldErrors) {
+            $messages[] = $field . ': ' . implode(', ', $fieldErrors);
+        }
+
+        return implode('; ', $messages);
     }
 }
