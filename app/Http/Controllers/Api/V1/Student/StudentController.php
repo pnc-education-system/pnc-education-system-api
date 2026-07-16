@@ -71,7 +71,7 @@ class StudentController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        $this->logUserAudit($student, 'student_created', $request);
+        $this->logAudit($student, 'student_created', $request);
 
         return response()->json([
             'status' => 'success',
