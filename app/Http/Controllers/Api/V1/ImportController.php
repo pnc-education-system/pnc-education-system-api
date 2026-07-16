@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Imports\StudentsPreviewImport;
 use App\Models\ImportError;
 use App\Models\ImportLog;
+use App\Models\SelectionBatch;
 use App\Services\Student\ImportValidationService;
 use App\Services\Student\StudentImportService;
 use Illuminate\Http\JsonResponse;
@@ -28,8 +29,6 @@ class ImportController extends Controller
         'full_name',
         'gender',
         'dob',
-        'selection_batch_id',
-        'intake_year',
     ];
 
     public function __construct(
@@ -43,15 +42,17 @@ class ImportController extends Controller
     public function upload(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'file' => 'required|file|mimes:xlsx|max:' . config('import.max_file_size_kb', 10240),
+            'file'               => 'required|file|mimes:xlsx|max:' . config('import.max_file_size_kb', 10240),
+            'selection_batch_id' => 'nullable|integer|exists:selection_batches,id',
         ], [
             'file.required' => 'No file was uploaded. Please attach a .xlsx file to proceed.',
             'file.mimes'    => 'Invalid file format. Only .xlsx (Excel) files are accepted.',
             'file.max'      => 'File size exceeds the maximum allowed size of ' . (config('import.max_file_size_kb', 10240) / 1024) . ' MB.',
+            'selection_batch_id.exists' => 'The selected batch does not exist.',
         ]);
 
         if ($validator->fails()) {
-            return $this->error($validator->errors()->first('file'), 422);
+            return $this->error($validator->errors()->first(), 422);
         }
 
         $file = $request->file('file');
@@ -60,18 +61,24 @@ class ImportController extends Controller
             return $this->error('The uploaded file is empty. Please upload a file containing student data.', 422);
         }
 
+        if (!class_exists(\ZipArchive::class)) {
+            return $this->error('Excel uploads require the PHP zip extension. Enable extension=zip in php.ini and restart PHP/Laragon.', 500);
+        }
+
+        $selectionBatch = $this->resolveSelectionBatch($request);
+
         try {
             $rows = Excel::toArray(new StudentsPreviewImport, $file);
-            $data = $rows[0] ?? [];
+            $data = $this->normalizeRows($rows[0] ?? [], $selectionBatch);
 
             if (empty($data)) {
                 return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
             }
 
-            $missingColumns = $this->validateHeaders($data[0]);
+            $missingColumns = $this->validateHeaders($data[0], $selectionBatch !== null);
             if (!empty($missingColumns)) {
                 return $this->error(
-                    'Missing required columns: ' . implode(', ', $missingColumns) . '. The file must contain: student_id_no, full_name, gender, dob, selection_batch_id, intake_year.',
+                    'Missing required columns: ' . implode(', ', $missingColumns) . '.',
                     422
                 );
             }
@@ -126,9 +133,14 @@ class ImportController extends Controller
                     'invalid_rows'   => $validationResult['summary']['invalid'],
                     'validation'     => $validationResult,
                     'rows'           => $data,
+                    'selection_batch' => $selectionBatch ? [
+                        'id'   => $selectionBatch->id,
+                        'name' => $selectionBatch->name,
+                        'year' => $selectionBatch->year,
+                    ] : null,
                 ],
             ], 201);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('File upload and validation failed', [
                 'error' => $e->getMessage(),
                 'file'  => $request->file('file')?->getClientOriginalName(),
@@ -227,8 +239,9 @@ class ImportController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'rows'   => 'required|array',
-            'rows.*' => 'array',
+            'rows'               => 'required|array',
+            'rows.*'             => 'array',
+            'selection_batch_id' => 'nullable|integer|exists:selection_batches,id',
         ]);
 
         if ($validator->fails()) {
@@ -236,9 +249,12 @@ class ImportController extends Controller
         }
 
         try {
+            $selectionBatch = $this->resolveSelectionBatch($request);
+            $rows = $this->normalizeRows($request->input('rows'), $selectionBatch);
+
             $result = $this->importService->commitById(
                 $log,
-                $request->input('rows'),
+                $rows,
                 auth()->id()
             );
 
@@ -282,21 +298,48 @@ class ImportController extends Controller
         ], 200);
     }
 
-    private function validateHeaders(array $firstRow): array
+    private function validateHeaders(array $firstRow, bool $hasSelectedBatch): array
     {
         $fileColumns = array_keys($firstRow);
+        $requiredColumns = $this->requiredColumns;
 
-        return array_diff($this->requiredColumns, $fileColumns);
-    }
-
-    private function formatErrors(array $errors): string
-    {
-        $messages = [];
-
-        foreach ($errors as $field => $fieldErrors) {
-            $messages[] = $field . ': ' . implode(', ', $fieldErrors);
+        if (!$hasSelectedBatch) {
+            $requiredColumns[] = 'selection_batch_id';
+            $requiredColumns[] = 'intake_year';
         }
 
-        return implode('; ', $messages);
+        return array_diff($requiredColumns, $fileColumns);
+    }
+
+    private function resolveSelectionBatch(Request $request): ?SelectionBatch
+    {
+        $batchId = $request->input('selection_batch_id');
+
+        if (!$batchId) {
+            return null;
+        }
+
+        return SelectionBatch::find((int) $batchId);
+    }
+
+    private function normalizeRows(array $rows, ?SelectionBatch $selectionBatch): array
+    {
+        return array_map(function (array $row) use ($selectionBatch) {
+            $row = array_map(
+                fn ($value) => is_string($value) ? trim($value) : $value,
+                $row
+            );
+
+            if ($selectionBatch) {
+                $row['selection_batch_id'] = $selectionBatch->id;
+                $row['intake_year'] = $selectionBatch->year;
+            }
+
+            if (($row['enrollment_status'] ?? '') === '') {
+                $row['enrollment_status'] = 'Pending';
+            }
+
+            return $row;
+        }, $rows);
     }
 }

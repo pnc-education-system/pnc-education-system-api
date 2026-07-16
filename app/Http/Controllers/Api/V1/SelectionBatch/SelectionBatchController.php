@@ -21,8 +21,10 @@ class SelectionBatchController extends Controller
             $query->where('year', $request->year);
         }
 
-        $batches = $query->orderBy('year', 'desc')->orderBy('name', 'asc')
-            ->get(['id', 'name', 'year']);
+        $batches = $query->where('is_active', true)
+            ->orderBy('year', 'desc')
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name', 'year', 'is_active']);
 
         return response()->json([
             'status' => 'success',

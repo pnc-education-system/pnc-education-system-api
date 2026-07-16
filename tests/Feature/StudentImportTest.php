@@ -60,6 +60,40 @@ class StudentImportTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_upload_preview_uses_selected_batch_for_import_rows(): void
+    {
+        if (!class_exists(\ZipArchive::class)) {
+            $this->markTestSkipped('The PHP zip extension is required to parse .xlsx fixtures.');
+        }
+
+        $fixturePath = base_path('tests/Fixtures/student_import_valid.xlsx');
+        if (!file_exists($fixturePath)) {
+            $this->markTestSkipped('The student import fixture is missing.');
+        }
+
+        $batch = SelectionBatch::create(['name' => 'Batch 2026', 'year' => 2026]);
+        $file = new UploadedFile(
+            $fixturePath,
+            'student_import_valid.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true
+        );
+
+        $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+            ->post('/api/v1/imports', [
+                'file' => $file,
+                'selection_batch_id' => $batch->id,
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.valid_rows', 4)
+            ->assertJsonPath('data.invalid_rows', 0)
+            ->assertJsonPath('data.rows.0.selection_batch_id', $batch->id)
+            ->assertJsonPath('data.rows.0.intake_year', $batch->year)
+            ->assertJsonPath('data.rows.0.enrollment_status', 'Pending');
+    }
+
     // ── Commit tests ──
 
     public function test_commit_requires_authentication(): void
@@ -120,6 +154,43 @@ class StudentImportTest extends TestCase
             ]);
         $response->assertStatus(200)
             ->assertJsonPath('data.imported', 1);
+    }
+
+    public function test_commit_uses_selected_batch_from_request(): void
+    {
+        $targetBatch = SelectionBatch::create(['name' => 'Batch 2026', 'year' => 2026]);
+        $log = ImportLog::create([
+            'file_name'     => 'test.xlsx',
+            'imported_by'   => 1,
+            'total_rows'    => 1,
+            'success_count' => 0,
+            'error_count'   => 0,
+            'status'        => 'Pending',
+        ]);
+
+        $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+            ->postJson("/api/v1/imports/{$log->id}/commit", [
+                'selection_batch_id' => $targetBatch->id,
+                'rows' => [[
+                    'student_id_no'      => 'ST1234',
+                    'full_name'          => 'Selected Batch Student',
+                    'gender'             => 'Female',
+                    'dob'                => '2000-01-01',
+                    'selection_batch_id' => 1,
+                    'enrollment_status'  => '',
+                    'intake_year'        => 2025,
+                ]],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.imported', 1);
+
+        $this->assertDatabaseHas('students', [
+            'student_id_no'      => 'ST1234',
+            'selection_batch_id' => $targetBatch->id,
+            'enrollment_status'  => 'Pending',
+            'intake_year'        => $targetBatch->year,
+        ]);
     }
 
     public function test_commit_rejects_already_processed_import(): void
