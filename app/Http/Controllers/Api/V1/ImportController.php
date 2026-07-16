@@ -306,4 +306,27 @@ class ImportController extends Controller
         ], 200);
     }
 
+    private function resolveSelectionBatch(Request $request): ?SelectionBatch
+    {
+        $batchId = $request->input('selection_batch_id');
+        if (!$batchId) {
+            return null;
+        }
+        return SelectionBatch::find($batchId);
+    }
+
+    private function normalizeRows(array $rows, ?SelectionBatch $selectionBatch): array
+    {
+        return array_map(function ($row) use ($selectionBatch) {
+            if (is_array($row)) {
+                // Ensure selection_batch_id is included in each row
+                if ($selectionBatch && !isset($row['selection_batch_id'])) {
+                    $row['selection_batch_id'] = $selectionBatch->id;
+                }
+                return $row;
+            }
+            return $row;
+        }, $rows);
+    }
+
 }
