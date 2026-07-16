@@ -24,7 +24,11 @@ class SelectionBatchController extends Controller
         $batches = $query->orderBy('year', 'desc')->orderBy('name', 'asc')
             ->get(['id', 'name', 'year']);
 
-        return response()->json($batches, 200);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Selection batches retrieved successfully',
+            'data' => $batches,
+        ], 200);
     }
 
     public function store(Request $request)
