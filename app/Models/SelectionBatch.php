@@ -14,6 +14,14 @@ class SelectionBatch extends Model
         'created_by',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'year' => 'integer',
+            'is_active' => 'boolean',
+        ];
+    }
+
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);

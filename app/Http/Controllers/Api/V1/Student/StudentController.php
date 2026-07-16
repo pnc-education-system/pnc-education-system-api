@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Api\V1\Student;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
+use App\Http\Controllers\Api\V1\Concerns\AuditableLogger;
 use App\Http\Requests\StudentFilterRequest;
+use App\Http\Requests\StudentStoreRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class StudentController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, AuditableLogger;
 
     public function index(StudentFilterRequest $request)
     {
@@ -48,5 +51,32 @@ class StudentController extends Controller
                 'to' => $students->lastItem(),
             ],
         ], 200);
+    }
+
+    public function store(StudentStoreRequest $request)
+    {
+        $student = Student::create([
+            'student_id_no' => $request->student_id_no,
+            'full_name' => $request->full_name,
+            'gender' => $request->gender,
+            'dob' => $request->dob,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'province' => $request->province,
+            'high_school' => $request->high_school,
+            'selection_batch_id' => $request->selection_batch_id,
+            'enrollment_status' => $request->enrollment_status,
+            'intake_year' => $request->intake_year,
+            'photo_path' => $request->photo_path,
+            'created_by' => Auth::id(),
+        ]);
+
+        $this->logUserAudit($student, 'student_created', $request);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Student created successfully',
+            'data' => new StudentResource($student->load('selectionBatch')),
+        ], 201);
     }
 }

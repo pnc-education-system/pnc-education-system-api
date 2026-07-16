@@ -15,20 +15,17 @@ class SelectionBatchController extends Controller
 
     public function index(Request $request)
     {
-        $query = SelectionBatch::withCount('students')->with('creator');
+        $query = SelectionBatch::query();
 
         // Filter by year if requested
         if ($request->has('year')) {
             $query->where('year', $request->year);
         }
 
-        $batches = $query->orderBy('year', 'desc')->orderBy('name', 'asc')->get();
+        $batches = $query->orderBy('year', 'desc')->orderBy('name', 'asc')
+            ->get(['id', 'name', 'year']);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Selection batches retrieved successfully',
-            'data' => $batches,
-        ], 200);
+        return response()->json($batches, 200);
     }
 
     public function store(Request $request)

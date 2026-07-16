@@ -50,8 +50,13 @@ Route::prefix('v1')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
         });
 
+        Route::middleware('permission:students.create')->group(function () {
+            Route::post('students', [StudentController::class, 'store']);
+        });
+
+        Route::get('selection-batches', [SelectionBatchController::class, 'index']);
+
         Route::middleware('permission:batches.manage')->group(function () {
-            Route::get('selection-batches', [SelectionBatchController::class, 'index']);
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
             Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);

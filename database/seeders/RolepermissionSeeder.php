@@ -17,6 +17,7 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Manage Settings',      'slug' => 'settings.manage',     'module' => 'admin'],
             // Students
             ['name' => 'View Students',        'slug' => 'students.view',       'module' => 'students'],
+            ['name' => 'Create Students',     'slug' => 'students.create',     'module' => 'students'],
             ['name' => 'Edit Students',        'slug' => 'students.edit',       'module' => 'students'],
             ['name' => 'Import Students',      'slug' => 'students.import',     'module' => 'students'],
             // Enrollment
@@ -58,7 +59,7 @@ class RolePermissionSeeder extends Seeder
         $adminRole->permissions()->sync(Permission::pluck('id'));
 
         $staffPerms = Permission::whereIn('slug', [
-            'students.view', 'students.edit', 'students.import',
+            'students.view', 'students.create', 'students.edit', 'students.import',
             'enrollment.manage', 'cards.generate',
             'records.view', 'records.manage',
             'evaluation.view', 'evaluation.manage', 'evaluation.submit',
