@@ -43,8 +43,14 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:students.view')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
         });
+        Route::get('students/{id}', [StudentController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view,students.edit,enrollment.manage');
         Route::middleware('permission:students.edit')->group(function () {
-            Route::put('students/{id}', [StudentController::class, 'update']);
+            Route::post('students/bulk-status', [StudentController::class, 'bulkUpdateStatus']);
+            Route::post('students/bulk-confirm', [StudentController::class, 'bulkConfirm']);
+            Route::put('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
+            Route::post('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
         });
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
@@ -59,4 +65,3 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
-

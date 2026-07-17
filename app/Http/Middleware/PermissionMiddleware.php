@@ -10,9 +10,11 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class PermissionMiddleware
 {
-    public function handle(Request $request, Closure $next, string $permission)
+    public function handle(Request $request, Closure $next, string ...$requiredPermissions)
     {
         try {
+            $requiredPermissions = array_values(array_filter($requiredPermissions));
+
             $token = JWTAuth::getToken();
 
             if (!$token) {
@@ -31,9 +33,9 @@ class PermissionMiddleware
 
             $permissions = $user->role->permissions->pluck('slug')->toArray();
 
-            if (!in_array($permission, $permissions)) {
+            if (empty(array_intersect($requiredPermissions, $permissions))) {
                 return $this->error('Missing required permission', 403, [
-                    'required_permission' => $permission,
+                    'required_permission' => implode('|', $requiredPermissions),
                     'user_permissions' => $permissions,
                 ]);
             }
@@ -59,4 +61,3 @@ class PermissionMiddleware
         return response()->json($response, $code);
     }
 }
-

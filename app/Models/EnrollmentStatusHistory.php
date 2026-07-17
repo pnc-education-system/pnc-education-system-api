@@ -11,6 +11,7 @@ class EnrollmentStatusHistory extends Model
         'student_id',
         'old_status',
         'new_status',
+        'graduated_status',
         'note',
         'changed_by',
     ];
