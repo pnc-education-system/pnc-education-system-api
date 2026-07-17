@@ -51,21 +51,5 @@ class SelectionBatchSeeder extends Seeder
                 'created_by' => $admin?->id ?? 1,
             ]
         );
-
-        SelectionBatch::firstOrCreate(
-            ['name' => 'Spring 2026'],
-            [
-                'year' => 2026,
-                'created_by' => $admin?->id ?? 1,
-            ]
-        );
-
-        SelectionBatch::firstOrCreate(
-            ['name' => 'Fall 2026'],
-            [
-                'year' => 2026,
-                'created_by' => $admin?->id ?? 1,
-            ]
-        );
     }
 }

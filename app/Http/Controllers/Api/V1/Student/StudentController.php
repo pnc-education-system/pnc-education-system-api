@@ -222,11 +222,11 @@ class StudentController extends Controller
             $newStatus = $request->input('status');
             $note = $request->input('note');
 
-            DB::transaction(function () use ($studentIds, $newStatus, $note) {
+            $updatedStudents = [];
+
+            DB::transaction(function () use ($studentIds, $newStatus, $note, &$updatedStudents) {
                 $students = Student::whereIn('id', $studentIds)->get();
 
-                $updatedStudents = [];
-                
                 foreach ($students as $student) {
                     // Skip invalid transitions
                     if (!Student::isValidTransition($student->enrollment_status, $newStatus)) {
@@ -239,7 +239,7 @@ class StudentController extends Controller
                 }
             });
 
-            $updatedCount = count($studentIds);
+            $updatedCount = count($updatedStudents);
 
             return response()->json([
                 'status'  => 'success',

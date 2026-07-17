@@ -122,7 +122,7 @@ class ImportValidationService
     private function getValidationRules(): array
     {
         return [
-            'student_id_no' => ['required', 'string', 'max:50', new StudentIdFormat()],
+            'student_id_no' => ['nullable', 'string', 'max:50', new StudentIdFormat()],
             'full_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:Male,Female'],
             'dob' => ['required', 'date', 'before:today'],
@@ -139,7 +139,6 @@ class ImportValidationService
     private function getCustomMessages(): array
     {
         return [
-            'student_id_no.required' => 'Student ID is required.',
             'student_id_no.max' => 'Student ID must not exceed 50 characters.',
             'full_name.required' => 'Full name is required.',
             'full_name.max' => 'Full name must not exceed 255 characters.',

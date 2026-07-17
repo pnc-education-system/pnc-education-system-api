@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\Log;
 class StudentImportService
 {
     private ImportValidationService $validationService;
+    private StudentIdGenerator $idGenerator;
 
-    public function __construct(ImportValidationService $validationService)
+    public function __construct(ImportValidationService $validationService, StudentIdGenerator $idGenerator)
     {
         $this->validationService = $validationService;
+        $this->idGenerator = $idGenerator;
     }
 
     public function import(array $rows, string $fileName, int $userId): array
@@ -106,7 +108,7 @@ class StudentImportService
     private function buildStudentData(array $row, int $userId): array
     {
         return [
-            'student_id_no' => $row['student_id_no'],
+            'student_id_no' => $this->getOrGenerateStudentId($row),
             'full_name' => $row['full_name'],
             'gender' => $row['gender'],
             'dob' => $row['dob'],
@@ -120,6 +122,34 @@ class StudentImportService
             'created_by' => $userId,
             'photo_path' => null,
         ];
+    }
+
+    private function getOrGenerateStudentId(array $row): string
+    {
+        // If student_id_no is provided and not empty, use it
+        if (!empty($row['student_id_no'])) {
+            return $row['student_id_no'];
+        }
+        
+        // Otherwise, generate a new ID using the intake year
+        $intakeYear = $row['intake_year'] ?? date('Y');
+        return $this->idGenerator->generateNextId($intakeYear);
+    }
+
+    private function generateMissingIds(array $rows, ?int $batchYear = null): array
+    {
+        // Use the batch's year so IDs are consistent within a batch
+        $year = $batchYear ?? $rows[0]['intake_year'] ?? date('Y');
+        
+        $ids = $this->idGenerator->generateMultipleIds(count($rows), $year);
+        $idIndex = 0;
+
+        return array_map(function ($row) use (&$idIndex, $ids) {
+            if (empty($row['student_id_no'])) {
+                $row['student_id_no'] = $ids[$idIndex++];
+            }
+            return $row;
+        }, $rows);
     }
 
     private function logValidationErrors(int $importLogId, array $invalidRows): void
@@ -172,6 +202,14 @@ class StudentImportService
         $importLog->update([
             'status' => 'Processing',
         ]);
+
+        // Auto-generate IDs using the batch's year
+        $batchYear = null;
+        if ($selectionBatchId) {
+            $batch = \App\Models\SelectionBatch::find($selectionBatchId);
+            $batchYear = $batch?->year;
+        }
+        $rows = $this->generateMissingIds($rows, $batchYear);
 
         $chunkSize  = 100;
         $chunks     = array_chunk($rows, $chunkSize);
@@ -253,6 +291,10 @@ class StudentImportService
             'error_count'   => 0,
             'status'        => 'Processing',
         ]);
+
+        // Auto-generate IDs for rows that don't have them
+        $rows = $this->generateMissingIds($rows);
+
         $chunkSize = 100;
         $chunks = array_chunk($rows, $chunkSize);
 

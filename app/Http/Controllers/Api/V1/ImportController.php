@@ -9,6 +9,7 @@ use App\Models\ImportError;
 use App\Models\ImportLog;
 use App\Models\SelectionBatch;
 use App\Services\Student\ImportValidationService;
+use App\Services\Student\StudentIdGenerator;
 use App\Services\Student\StudentImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,12 +25,16 @@ class ImportController extends Controller
 
     private ImportValidationService $validationService;
 
+    private StudentIdGenerator $idGenerator;
+
     public function __construct(
         StudentImportService $importService,
-        ImportValidationService $validationService
+        ImportValidationService $validationService,
+        StudentIdGenerator $idGenerator
     ) {
         $this->importService = $importService;
         $this->validationService = $validationService;
+        $this->idGenerator = $idGenerator;
     }
 
     public function upload(Request $request): JsonResponse
@@ -69,7 +74,32 @@ class ImportController extends Controller
                 return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
             }
 
+            // Validate first (IDs are empty since CSV doesn't include student_id_no column)
             $validationResult = $this->validationService->validate($data);
+
+            // Then generate IDs ONLY for valid rows — no gaps in the sequence
+            $validCount = $validationResult['summary']['valid'];
+            if ($validCount > 0) {
+                $batchYear = $selectionBatch?->year ?? (int)($data[0]['intake_year'] ?? date('Y'));
+                $newIds = $this->idGenerator->generateMultipleIds($validCount, $batchYear);
+
+                // Build a set of invalid row numbers for quick lookup
+                $invalidRows = [];
+                foreach ($validationResult['invalidRows'] as $invalidRow) {
+                    $invalidRows[] = $invalidRow['row'];
+                }
+
+                // Assign IDs to valid rows only
+                $idIndex = 0;
+                foreach ($data as $index => &$row) {
+                    if (!in_array($index + 1, $invalidRows)) {
+                        $row['student_id_no'] = $newIds[$idIndex];
+                        $validationResult['validRows'][$idIndex]['student_id_no'] = $newIds[$idIndex];
+                        $idIndex++;
+                    }
+                }
+                unset($row);
+            }
 
             $importLog = ImportLog::create([
                 'file_name'          => $file->getClientOriginalName(),
@@ -328,5 +358,7 @@ class ImportController extends Controller
             return $row;
         }, $rows);
     }
+
+
 
 }
