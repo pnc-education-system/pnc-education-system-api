@@ -228,13 +228,8 @@ class StudentController extends Controller
                 $students = Student::whereIn('id', $studentIds)->get();
 
                 foreach ($students as $student) {
-                    // Skip invalid transitions
-                    if (!Student::isValidTransition($student->enrollment_status, $newStatus)) {
-                        continue;
-                    }
-
-                    // Update status
-                    $student->transitionStatus($newStatus, $note, Auth::id());
+                    // Update status directly (force transition)
+                    $student->transitionStatus($newStatus, $note, Auth::id(), true);
                     $updatedStudents[] = $student->student_id_no;
                 }
             });

@@ -88,11 +88,11 @@ class Student extends Model
         return self::VALID_TRANSITIONS[$status] ?? [];
     }
 
-    public function transitionStatus(string $newStatus, ?string $note = null, ?int $changedBy = null): EnrollmentStatusHistory
+    public function transitionStatus(string $newStatus, ?string $note = null, ?int $changedBy = null, bool $force = false): EnrollmentStatusHistory
     {
         $oldStatus = $this->enrollment_status;
 
-        if (!self::isValidTransition($oldStatus, $newStatus)) {
+        if (!$force && !self::isValidTransition($oldStatus, $newStatus)) {
             throw new \InvalidArgumentException(
                 "Invalid status transition from '{$oldStatus}' to '{$newStatus}'."
             );
