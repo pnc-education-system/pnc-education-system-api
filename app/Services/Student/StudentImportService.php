@@ -165,9 +165,12 @@ class StudentImportService
 
     public function commitById(ImportLog $importLog, array $rows, int $userId, ?int $selectionBatchId = null): array
     {
+        // Preserve the original total_rows and validation error_count from upload
+        // so the import history shows the full picture (total from file, not just valid rows).
+        $validationErrorCount = $importLog->error_count;
+
         $importLog->update([
-            'total_rows'    => count($rows),
-            'status'        => 'Processing',
+            'status' => 'Processing',
         ]);
 
         $chunkSize  = 100;
@@ -227,15 +230,15 @@ class StudentImportService
 
         $importLog->update([
             'success_count' => $totalSuccess,
-            'error_count'   => $totalFailed,
+            'error_count'   => $validationErrorCount + $totalFailed,
             'status'        => 'Completed',
         ]);
 
         return [
             'import_log_id' => $importLog->id,
-            'total_rows'    => count($rows),
+            'total_rows'    => $importLog->fresh()->total_rows,
             'imported'      => $totalSuccess,
-            'failed'        => $totalFailed,
+            'failed'        => $validationErrorCount + $totalFailed,
             'chunks'        => count($chunks),
         ];
     }
