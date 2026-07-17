@@ -33,6 +33,7 @@ class Student extends Model
         'high_school',
         'selection_batch_id',
         'enrollment_status',
+        'is_confirmed',
         'intake_year',
         'photo_path',
         'created_by',
@@ -43,6 +44,7 @@ class Student extends Model
         return [
             'dob'        => 'date:Y-m-d',
             'intake_year' => 'integer',
+            'is_confirmed' => 'boolean',
         ];
     }
 
@@ -100,10 +102,11 @@ class Student extends Model
         $this->save();
 
         return $this->enrollmentStatusHistories()->create([
-            'old_status'  => $oldStatus,
-            'new_status'  => $newStatus,
-            'note'        => $note,
-            'changed_by'  => $changedBy ?? auth()->id(),
+            'old_status'       => $oldStatus,
+            'new_status'       => $newStatus,
+            'graduated_status' => $newStatus,
+            'note'             => $note,
+            'changed_by'       => $changedBy ?? auth()->id(),
         ]);
     }
 }

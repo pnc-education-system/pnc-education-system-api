@@ -7,11 +7,16 @@ use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Http\Controllers\Api\V1\Concerns\AuditableLogger;
 use App\Http\Requests\StudentFilterRequest;
 use App\Http\Requests\StudentStoreRequest;
+use App\Http\Requests\StudentUpdateRequest;
 use App\Http\Requests\UpdateStudentStatusRequest;
+use App\Http\Requests\BulkConfirmStudentsRequest;
+use App\Http\Requests\BulkUpdateStudentStatusRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class StudentController extends Controller
 {
@@ -81,6 +86,21 @@ class StudentController extends Controller
         ], 201);
     }
 
+    public function show($id)
+    {
+        $student = Student::with('selectionBatch')->find($id);
+
+        if (!$student) {
+            return $this->error('Student not found', 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Student retrieved successfully',
+            'data' => new StudentResource($student),
+        ], 200);
+    }
+
     public function updateStatus(UpdateStudentStatusRequest $request, $id)
     {
         $student = Student::find($id);
@@ -127,7 +147,7 @@ class StudentController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(StudentUpdateRequest $request, $id)
     {
         $student = Student::find($id);
 
@@ -135,28 +155,133 @@ class StudentController extends Controller
             return $this->error('Student not found', 404);
         }
 
+        $data = $request->validated();
+        unset($data['photo']);
+
+        $newPhotoPath = null;
+        $oldPhotoPath = $student->photo_path;
+
         try {
-            $student->update($request->only([
-                'student_id_no',
-                'full_name',
-                'gender',
-                'dob',
-                'phone',
-                'email',
-                'province',
-                'high_school',
-                'selection_batch_id',
-                'intake_year',
-                'photo_path',
-            ]));
+            if ($request->hasFile('photo')) {
+                $newPhotoPath = $request->file('photo')->store('students/photos', 'public');
+                $data['photo_path'] = $newPhotoPath;
+            }
+
+            $oldValues = $student->only(array_keys($data));
+
+            DB::transaction(function () use ($student, $data) {
+                $student->update($data);
+            });
+
+            if ($newPhotoPath && $oldPhotoPath) {
+                $this->deleteStudentPhoto($oldPhotoPath);
+            }
+
+            $student = $student->fresh()->load('selectionBatch');
+            $this->logAudit($student, 'student_updated', $request, $oldValues, $student->toArray());
 
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Student updated successfully',
-                'data'    => new StudentResource($student->fresh()->load('selectionBatch')),
+                'data'    => new StudentResource($student),
             ], 200);
         } catch (\Exception $e) {
+            if ($newPhotoPath) {
+                Storage::disk('public')->delete($newPhotoPath);
+            }
+
             return $this->error('Failed to update student: ' . $e->getMessage(), 500);
+        }
+    }
+
+    private function deleteStudentPhoto(string $path): void
+    {
+        $photoPath = $this->normalizeStudentPhotoPath($path);
+
+        if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
+    }
+
+    private function normalizeStudentPhotoPath(string $path): ?string
+    {
+        $path = parse_url($path, PHP_URL_PATH) ?: $path;
+        $path = ltrim($path, '/');
+
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+        }
+
+        return $path !== '' ? $path : null;
+    }
+
+    public function bulkUpdateStatus(BulkUpdateStudentStatusRequest $request)
+    {
+        try {
+            $studentIds = $request->input('student_ids');
+            $newStatus = $request->input('status');
+            $note = $request->input('note');
+
+            DB::transaction(function () use ($studentIds, $newStatus, $note) {
+                $students = Student::whereIn('id', $studentIds)->get();
+
+                $updatedStudents = [];
+                
+                foreach ($students as $student) {
+                    // Skip invalid transitions
+                    if (!Student::isValidTransition($student->enrollment_status, $newStatus)) {
+                        continue;
+                    }
+
+                    // Update status
+                    $student->transitionStatus($newStatus, $note, Auth::id());
+                    $updatedStudents[] = $student->student_id_no;
+                }
+            });
+
+            $updatedCount = count($studentIds);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => "Successfully updated status for {$updatedCount} student(s).",
+                'data'    => [
+                    'updated_count' => $updatedCount,
+                    'status' => $newStatus,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Bulk update error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $this->error('Failed to bulk update student status: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function bulkConfirm(BulkConfirmStudentsRequest $request)
+    {
+        try {
+            $studentIds = $request->input('student_ids');
+
+            DB::transaction(function () use ($studentIds) {
+                Student::whereIn('id', $studentIds)->update(['is_confirmed' => true]);
+            });
+
+            $confirmedCount = count($studentIds);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => "Successfully confirmed {$confirmedCount} student(s).",
+                'data'    => [
+                    'confirmed_count' => $confirmedCount,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Bulk confirm error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $this->error('Failed to bulk confirm students: ' . $e->getMessage(), 500);
         }
     }
 }

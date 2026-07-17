@@ -14,7 +14,7 @@ class StudentFilterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => 'nullable|string|in:Pending,Enrolled,Rejected,Graduated,Dropped',
+            'status' => 'nullable|string',
             'batch' => 'nullable|integer|exists:selection_batches,id',
             'province' => 'nullable|string|max:100',
             'search' => 'nullable|string|max:255',
