@@ -31,6 +31,7 @@ class StudentUpdateRequest extends FormRequest
             'selection_batch_id' => ['required', 'exists:selection_batches,id'],
             'enrollment_status' => ['required', Rule::in(['Pending', 'Enrolled', 'Rejected', 'Graduated', 'Dropped'])],
             'intake_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'enrolled_at' => ['nullable', 'date'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }

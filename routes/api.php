@@ -47,6 +47,7 @@ Route::prefix('v1')->group(function () {
             ->whereNumber('id')
             ->middleware('permission:students.view,students.edit,enrollment.manage');
         Route::middleware('permission:students.edit')->group(function () {
+            Route::post('students', [StudentController::class, 'store']);
             Route::post('students/bulk-status', [StudentController::class, 'bulkUpdateStatus']);
             Route::post('students/bulk-confirm', [StudentController::class, 'bulkConfirm']);
             Route::put('students/{id}', [StudentController::class, 'update'])->whereNumber('id');

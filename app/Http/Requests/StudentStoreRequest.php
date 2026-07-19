@@ -26,6 +26,7 @@ class StudentStoreRequest extends FormRequest
             'selection_batch_id' => 'required|exists:selection_batches,id',
             'enrollment_status' => 'required|in:Pending,Enrolled,Rejected,Graduated,Dropped',
             'intake_year' => 'nullable|integer|min:2000|max:2100',
+            'enrolled_at' => 'nullable|date',
             'photo_path' => 'nullable|string|max:255',
         ];
     }

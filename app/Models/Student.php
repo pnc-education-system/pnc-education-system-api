@@ -35,6 +35,7 @@ class Student extends Model
         'enrollment_status',
         'is_confirmed',
         'intake_year',
+        'enrolled_at',
         'photo_path',
         'created_by',
     ];
@@ -42,8 +43,9 @@ class Student extends Model
     protected function casts(): array
     {
         return [
-            'dob'        => 'date:Y-m-d',
-            'intake_year' => 'integer',
+            'dob'          => 'date:Y-m-d',
+            'enrolled_at'  => 'datetime',
+            'intake_year'  => 'integer',
             'is_confirmed' => 'boolean',
         ];
     }
