@@ -1,0 +1,1024 @@
+{
+  "info": {
+    "name": "PNC Education System API",
+    "description": "Complete Postman collection for testing the PNC Education System API.\n\n## Setup Instructions:\n\n### 1. Set Environment Variables\nCreate a Postman environment with these variables:\n- `base_url`: `http://localhost:8000/api` (your API base URL)\n- `access_token`: (will be auto-set after login)\n- `refresh_token`: (will be auto-set after login)\n- `student_id`: (set after creating a student)\n- `user_id`: (set after creating a user)\n- `role_id`: (set after creating a role)\n- `import_log_id`: (set after uploading an import)\n- `selection_batch_id`: (set after creating a batch)\n\n### 2. Auto Token via Tests\nAfter calling **Login**, the test scripts automatically save tokens to the collection variables.\n\n### 3. Run in Order\nStart with Login → then any authenticated endpoints.\n\n---\n\n**Base URL:** `{{base_url}}`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "pnc-api-tester"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "description": "Authentication endpoints - login, logout, refresh token, etc.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('access_token', jsonData.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
+                  "    console.log('Token saved!');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@test.com\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "auth", "login"]
+            },
+            "description": "Authenticate and get JWT token + refresh token.\n\n**Rate limit:** 5 requests per minute\n**Response includes:** access_token, refresh_token, user info, and permissions"
+          }
+        },
+        {
+          "name": "Get Current User (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "auth", "me"]
+            },
+            "description": "Get authenticated user's profile and permissions."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "auth", "logout"]
+            },
+            "description": "Invalidate current JWT token and revoke all refresh tokens."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "auth", "refresh"]
+            },
+            "description": "Exchange a refresh token for a new access token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('access_token', jsonData.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@test.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/auth/password/reset",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "auth", "password", "reset"]
+            },
+            "description": "Request a password reset link (sent via email).\n\n**Rate limit:** 3 requests per minute"
+          }
+        },
+        {
+          "name": "Confirm Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@test.com\",\n    \"reset_token\": \"your-reset-token-here\",\n    \"password\": \"newpassword123\",\n    \"password_confirmation\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/auth/password/reset/confirm",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "auth", "password", "reset", "confirm"]
+            },
+            "description": "Confirm password reset with token received via email.\n\n**Rate limit:** 3 requests per minute"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Users (Admin)",
+      "description": "User management endpoints (requires `users.manage` permission)",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/users",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "users"]
+            },
+            "description": "Get paginated list of all users with their roles."
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Staff\",\n    \"email\": \"staff@example.com\",\n    \"password\": \"password123\",\n    \"role_id\": 1,\n    \"phone\": \"0123456789\",\n    \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/users",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "users"]
+            },
+            "description": "Create a new user.\n\n**Validation:**\n- name: required, string, max 255\n- email: required, email, unique\n- password: required, min 8 chars\n- role_id: optional, must exist in roles table\n- is_active: optional, boolean"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/users/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "users", "1"]
+            },
+            "description": "Get details of a specific user by ID."
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Staff Name\",\n    \"email\": \"staff_updated@example.com\",\n    \"role_id\": 1,\n    \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/users/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "users", "1"]
+            },
+            "description": "Update user details. All fields are optional (use `sometimes` validation)."
+          }
+        },
+        {
+          "name": "Toggle User Active Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/users/1/toggle",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "users", "1", "toggle"]
+            },
+            "description": "Toggle user's `is_active` status (activate/deactivate)."
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/users/2",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "users", "2"]
+            },
+            "description": "Delete a user (cannot delete yourself)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔑 Roles & Permissions",
+      "description": "Role management endpoints (requires `roles.manage` permission)",
+      "item": [
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/roles",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "roles"]
+            },
+            "description": "Get all roles with their associated permissions."
+          }
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Registrar\",\n    \"slug\": \"registrar\",\n    \"description\": \"Manages student enrollment and records\",\n    \"permissions\": [\"students.view\", \"students.edit\", \"enrollment.manage\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/roles",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "roles"]
+            },
+            "description": "Create a new role with optional permission assignments.\n\n**Permissions are referenced by their `slug` values.**"
+          }
+        },
+        {
+          "name": "Get Role by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/roles/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "roles", "1"]
+            },
+            "description": "Get a specific role with its permissions."
+          }
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Senior Registrar\",\n    \"slug\": \"senior-registrar\",\n    \"description\": \"Senior registrar with full permissions\",\n    \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/roles/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "roles", "1"]
+            },
+            "description": "Update role details. All fields are optional."
+          }
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/roles/2",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "roles", "2"]
+            },
+            "description": "Delete a role (detaches all associated permissions)."
+          }
+        },
+        {
+          "name": "List All Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/permissions",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "permissions"]
+            },
+            "description": "Get all available permissions in the system."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎓 Students",
+      "description": "Student CRUD and management endpoints",
+      "item": [
+        {
+          "name": "List Students",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/students?status=Pending&batch=1&province=Phnom%20Penh&search=ST001&page=1&per_page=15",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "students"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Pending",
+                  "description": "Filter by enrollment status (Pending, Enrolled, Rejected, Graduated, Dropped)"
+                },
+                {
+                  "key": "batch",
+                  "value": "1",
+                  "description": "Filter by selection batch ID"
+                },
+                {
+                  "key": "province",
+                  "value": "Phnom Penh",
+                  "description": "Search by province (partial match)"
+                },
+                {
+                  "key": "search",
+                  "value": "ST001",
+                  "description": "Search by student ID, name, phone, or email"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page (default: 15)"
+                }
+              ]
+            },
+            "description": "Get paginated list of students with filters.\n\n**Permission:** `students.view`\n**Filters:** status, batch, province, search\n**Pagination:** page, per_page"
+          }
+        },
+        {
+          "name": "Create Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"student_id_no\": \"STC2025001\",\n    \"full_name\": \"Sok San\",\n    \"gender\": \"Male\",\n    \"dob\": \"2005-06-15\",\n    \"phone\": \"012345678\",\n    \"email\": \"sok.san@example.com\",\n    \"province\": \"Phnom Penh\",\n    \"high_school\": \"Toul Kork High School\",\n    \"selection_batch_id\": 1,\n    \"enrollment_status\": \"Pending\",\n    \"intake_year\": 2025,\n    \"enrolled_at\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/students",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "students"]
+            },
+            "description": "Create a new student record.\n\n**Permission:** `students.edit`\n**Validation:**\n- student_id_no: required, unique\n- full_name: required, max 255\n- gender: required, Male/Female\n- selection_batch_id: required, must exist\n- enrollment_status: required, one of: Pending, Enrolled, Rejected, Graduated, Dropped"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) {",
+                  "    pm.collectionVariables.set('student_id', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Student Detail (with linked data)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/students/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "students", "1"]
+            },
+            "description": "Get student details with all linked data:\n- Selection batch info\n- Student records with attachments\n- Evaluations with answers and form details\n- Student cards\n- Enrollment status history\n\n**Permission:** `students.view`, `students.edit`, or `enrollment.manage`"
+          }
+        },
+        {
+          "name": "Update Student",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"student_id_no\": \"STC2025001\",\n    \"full_name\": \"Sok San Updated\",\n    \"gender\": \"Male\",\n    \"dob\": \"2005-06-15\",\n    \"phone\": \"098765432\",\n    \"email\": \"sok.san.updated@example.com\",\n    \"province\": \"Kampong Cham\",\n    \"high_school\": \"Kampong Cham High School\",\n    \"selection_batch_id\": 1,\n    \"enrollment_status\": \"Enrolled\",\n    \"intake_year\": 2025\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/students/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "students", "1"]
+            },
+            "description": "Update student details. Also supports POST method.\n\n**Permission:** `students.edit`\n**Supports photo upload:** use `form-data` with key `photo` (jpg,jpeg,png,webp, max 4MB)"
+          }
+        },
+        {
+          "name": "Update Student Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"Enrolled\",\n    \"note\": \"Student confirmed enrollment for academic year 2025\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/students/1/status",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "students", "1", "status"]
+            },
+            "description": "Transition student enrollment status.\n\n**Permission:** `enrollment.manage`\n**Valid transitions:**\n- Pending → Enrolled, Rejected, Dropped\n- Enrolled → Graduated, Dropped\n- Rejected → Pending\n- Graduated → (no further transitions)\n- Dropped → Pending"
+          }
+        },
+        {
+          "name": "Bulk Update Student Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"student_ids\": [1, 2, 3],\n    \"status\": \"Enrolled\",\n    \"note\": \"Bulk enrollment for batch 2025\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/students/bulk-status",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "students", "bulk-status"]
+            },
+            "description": "Bulk update enrollment status for multiple students.\n\n**Permission:** `students.edit`\n**Note:** This is a force transition (bypasses transition rules)."
+          }
+        },
+        {
+          "name": "Bulk Confirm Students",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"student_ids\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/students/bulk-confirm",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "students", "bulk-confirm"]
+            },
+            "description": "Confirm multiple students at once.\n\n**Permission:** `students.edit`\nSets `is_confirmed = true` for all given student IDs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📥 Imports",
+      "description": "Student import via Excel files",
+      "item": [
+        {
+          "name": "Upload Excel File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Excel file (.xlsx) - max 10MB"
+                },
+                {
+                  "key": "selection_batch_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "Selection batch ID to associate with import"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/imports",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "imports"]
+            },
+            "description": "Upload Excel file for student import.\n\n**Permission:** `students.import`\n**Validates:** file type (.xlsx), file size, and row data.\n**Returns:** import_log_id, validation summary with valid/invalid rows.\n\n**Steps after upload:**\n1. Review validation errors using `GET /imports/{id}/errors`\n2. Commit the import using `POST /imports/{id}/commit` with the rows from the upload response"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.import_log_id) {",
+                  "    pm.collectionVariables.set('import_log_id', jsonData.data.import_log_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Import History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/imports?status=Pending&per_page=15",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "imports"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Pending",
+                  "description": "Filter by status: Pending, Processing, Completed, Failed"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Get paginated list of all import operations.\n\n**Permission:** `students.import`"
+          }
+        },
+        {
+          "name": "Get Import Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/imports/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "imports", "1"]
+            },
+            "description": "Get details of a specific import log with errors."
+          }
+        },
+        {
+          "name": "Commit Import",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"rows\": [\n        {\n            \"student_id_no\": \"STC2025001\",\n            \"full_name\": \"Sok San\",\n            \"gender\": \"Male\",\n            \"dob\": \"2005-06-15\",\n            \"phone\": \"012345678\",\n            \"province\": \"Phnom Penh\",\n            \"high_school\": \"Toul Kork High School\",\n            \"enrollment_status\": \"Pending\",\n            \"intake_year\": 2025\n        }\n    ],\n    \"selection_batch_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/imports/1/commit",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "imports", "1", "commit"]
+            },
+            "description": "Commit/process a pending import into the database.\n\n**Permission:** `students.import`\n**Requirements:**\n- Import must be in 'Pending' status\n- Provide the `rows` data (can use the rows from upload response)\n- Can optionally override `selection_batch_id`"
+          }
+        },
+        {
+          "name": "Get Import Errors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/imports/1/errors",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "imports", "1", "errors"]
+            },
+            "description": "Get validation errors for a specific import."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📦 Selection Batches",
+      "description": "Selection batch management",
+      "item": [
+        {
+          "name": "List Selection Batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/selection-batches?year=2025",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "selection-batches"],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2025",
+                  "description": "Filter by year"
+                }
+              ]
+            },
+            "description": "Get all selection batches, optionally filtered by year."
+          }
+        },
+        {
+          "name": "Create Selection Batch",
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Accept",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n    \"name\": \"Batch 2025\",\n    \"year\": 2025\n}"
+          },
+          "url": {
+            "raw": "{{base_url}}/v1/selection-batches",
+            "host": ["{{base_url}}"],
+            "path": ["v1", "selection-batches"]
+          },
+          "description": "Create a new selection batch.\n\n**Permission:** `batches.manage`\n**Validation:** name required, year required (4 digits)"
+        },
+        {
+          "name": "Get Selection Batch Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/selection-batches/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "selection-batches", "1"]
+            },
+            "description": "Get selection batch details with student count and creator info."
+          }
+        },
+        {
+          "name": "Update Selection Batch",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Batch 2025 Updated\",\n    \"year\": 2026\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/selection-batches/1",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "selection-batches", "1"]
+            },
+            "description": "Update selection batch name and/or year.\n\n**Permission:** `batches.manage`"
+          }
+        },
+        {
+          "name": "Delete Selection Batch",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/selection-batches/2",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "selection-batches", "2"]
+            },
+            "description": "Delete a selection batch. Cannot delete if it has associated students.\n\n**Permission:** `batches.manage`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Dashboard",
+      "description": "Dashboard statistics",
+      "item": [
+        {
+          "name": "Enrollment Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/dashboard/enrollment",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "dashboard", "enrollment"]
+            },
+            "description": "Get enrollment dashboard statistics (requires authentication)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Environment Template",
+      "description": "Variables to set in your Postman environment",
+      "variable": [
+        {
+          "key": "base_url",
+          "value": "http://localhost:8000/api",
+          "type": "string"
+        },
+        {
+          "key": "access_token",
+          "value": "",
+          "type": "string"
+        },
+        {
+          "key": "refresh_token",
+          "value": "",
+          "type": "string"
+        },
+        {
+          "key": "student_id",
+          "value": "",
+          "type": "string"
+        },
+        {
+          "key": "user_id",
+          "value": "",
+          "type": "string"
+        },
+        {
+          "key": "role_id",
+          "value": "",
+          "type": "string"
+        },
+        {
+          "key": "import_log_id",
+          "value": "",
+          "type": "string"
+        },
+        {
+          "key": "selection_batch_id",
+          "value": "",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

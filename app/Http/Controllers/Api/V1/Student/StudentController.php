@@ -89,7 +89,14 @@ class StudentController extends Controller
 
     public function show($id)
     {
-        $student = Student::with('selectionBatch')->find($id);
+        $student = Student::with([
+            'selectionBatch',
+            'records.attachments',
+            'evaluations.answers',
+            'evaluations.evaluationForm',
+            'cards',
+            'enrollmentStatusHistories',
+        ])->find($id);
 
         if (!$student) {
             return $this->error('Student not found', 404);
