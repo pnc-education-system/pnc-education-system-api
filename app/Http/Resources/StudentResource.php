@@ -29,6 +29,7 @@ class StudentResource extends JsonResource
             'status' => $this->enrollment_status,
             'photo_path' => $this->photo_path,
             'intake_year' => $this->intake_year,
+            'enrolled_at' => $this->enrolled_at ? $this->enrolled_at->format('Y-m-d') : null,
             'created_by' => $this->created_by,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

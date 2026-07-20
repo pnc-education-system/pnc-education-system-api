@@ -42,7 +42,7 @@ class StudentController extends Controller
             });
         });
 
-        $students = $query->orderBy('created_at', 'desc')->paginate(15);
+        $students = $query->orderBy('student_id_no', 'desc')->paginate(15);
 
         return response()->json([
             'status' => 'success',
@@ -73,6 +73,7 @@ class StudentController extends Controller
             'selection_batch_id' => $request->selection_batch_id,
             'enrollment_status' => $request->enrollment_status,
             'intake_year' => $request->intake_year,
+            'enrolled_at' => $request->enrolled_at,
             'photo_path' => $request->photo_path,
             'created_by' => Auth::id(),
         ]);
@@ -228,13 +229,8 @@ class StudentController extends Controller
                 $students = Student::whereIn('id', $studentIds)->get();
 
                 foreach ($students as $student) {
-                    // Skip invalid transitions
-                    if (!Student::isValidTransition($student->enrollment_status, $newStatus)) {
-                        continue;
-                    }
-
-                    // Update status
-                    $student->transitionStatus($newStatus, $note, Auth::id());
+                    // Update status directly (force transition)
+                    $student->transitionStatus($newStatus, $note, Auth::id(), true);
                     $updatedStudents[] = $student->student_id_no;
                 }
             });
