@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Student\StudentController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
+use App\Http\Controllers\Api\V1\Card\StudentCardController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -64,5 +65,10 @@ Route::prefix('v1')->group(function () {
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
         });
+
+        Route::middleware('permission:cards.generate')->group(function () {
+            Route::post('student-cards/{id}/reprint', [StudentCardController::class, 'reprint'])->whereNumber('id');
+        });
+
     });
 });
