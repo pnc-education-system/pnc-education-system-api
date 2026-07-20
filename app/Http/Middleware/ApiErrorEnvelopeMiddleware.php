@@ -28,6 +28,11 @@ class ApiErrorEnvelopeMiddleware
         if ($isErrorStatus) {
             $message = null;
 
+            // If response already has 'success' key, don't wrap it
+            if (isset($payload['success'])) {
+                return $response;
+            }
+
             if (isset($payload['error']['message'])) {
                 return $response;
             }
