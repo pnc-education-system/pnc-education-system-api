@@ -1,0 +1,39 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Foundation\Http\FormRequest;
+
+class BulkConfirmStudentsRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        return [
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'integer',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'student_ids.required' => 'At least one student must be selected.',
+            'student_ids.array' => 'Student IDs must be an array.',
+            'student_ids.min' => 'At least one student must be selected.',
+        ];
+    }
+}

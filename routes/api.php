@@ -43,16 +43,27 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:students.view')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
         });
+        Route::get('students/{id}', [StudentController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view,students.edit,enrollment.manage');
+        Route::middleware('permission:students.edit')->group(function () {
+            Route::post('students', [StudentController::class, 'store']);
+            Route::post('students/bulk-status', [StudentController::class, 'bulkUpdateStatus']);
+            Route::post('students/bulk-confirm', [StudentController::class, 'bulkConfirm']);
+            Route::put('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
+            Route::post('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
+            Route::post('students/{id}/photo', [StudentController::class, 'uploadPhoto'])->whereNumber('id');
+        });
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
         });
+        Route::get('selection-batches', [SelectionBatchController::class, 'index']);
+        Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
+
         Route::middleware('permission:batches.manage')->group(function () {
-            Route::get('selection-batches', [SelectionBatchController::class, 'index']);
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
-            Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
         });
     });
 });
-

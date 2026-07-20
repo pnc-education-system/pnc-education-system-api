@@ -16,34 +16,36 @@ class UserSeeder extends Seeder
         $staffRole   = Role::where('slug', 'education_staff')->firstOrFail();
         $viewerRole  = Role::where('slug', 'management')->firstOrFail();
 
-
-        User::firstOrCreate(
+        DB::table('users')->updateOrInsert(
             ['email' => 'admin@pnc.edu.kh'],
             [
                 'role_id'   => $adminRole->id,
                 'name'      => 'System Administrator',
                 'password'  => Hash::make('Admin@123456'),
                 'is_active' => true,
+                'updated_at' => now(),
             ]
         );
 
-        User::firstOrCreate(
+        DB::table('users')->updateOrInsert(
             ['email' => 'staff@pnc.edu.kh'],
             [
                 'role_id'   => $staffRole->id,
                 'name'      => 'Chandy Srin',
                 'password'  => Hash::make('Staff@123456'),
                 'is_active' => true,
+                'updated_at' => now(),
             ]
         );
 
-        User::firstOrCreate(
+        DB::table('users')->updateOrInsert(
             ['email' => 'management@pnc.edu.kh'],
             [
                 'role_id'   => $viewerRole->id,
                 'name'      => 'Sok Seyla',
                 'password'  => Hash::make('Manager@123456'),
                 'is_active' => true,
+                'updated_at' => now(),
             ]
         );
     }
