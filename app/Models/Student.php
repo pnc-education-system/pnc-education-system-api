@@ -33,7 +33,9 @@ class Student extends Model
         'high_school',
         'selection_batch_id',
         'enrollment_status',
+        'is_confirmed',
         'intake_year',
+        'enrolled_at',
         'photo_path',
         'created_by',
     ];
@@ -41,8 +43,10 @@ class Student extends Model
     protected function casts(): array
     {
         return [
-            'dob'        => 'date:Y-m-d',
-            'intake_year' => 'integer',
+            'dob'          => 'date:Y-m-d',
+            'enrolled_at'  => 'datetime',
+            'intake_year'  => 'integer',
+            'is_confirmed' => 'boolean',
         ];
     }
 
@@ -86,11 +90,11 @@ class Student extends Model
         return self::VALID_TRANSITIONS[$status] ?? [];
     }
 
-    public function transitionStatus(string $newStatus, ?string $note = null, ?int $changedBy = null): EnrollmentStatusHistory
+    public function transitionStatus(string $newStatus, ?string $note = null, ?int $changedBy = null, bool $force = false): EnrollmentStatusHistory
     {
         $oldStatus = $this->enrollment_status;
 
-        if (!self::isValidTransition($oldStatus, $newStatus)) {
+        if (!$force && !self::isValidTransition($oldStatus, $newStatus)) {
             throw new \InvalidArgumentException(
                 "Invalid status transition from '{$oldStatus}' to '{$newStatus}'."
             );
@@ -100,10 +104,11 @@ class Student extends Model
         $this->save();
 
         return $this->enrollmentStatusHistories()->create([
-            'old_status'  => $oldStatus,
-            'new_status'  => $newStatus,
-            'note'        => $note,
-            'changed_by'  => $changedBy ?? auth()->id(),
+            'old_status'       => $oldStatus,
+            'new_status'       => $newStatus,
+            'graduated_status' => $newStatus,
+            'note'             => $note,
+            'changed_by'       => $changedBy ?? auth()->id(),
         ]);
     }
 }

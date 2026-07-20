@@ -158,7 +158,7 @@ class ImportValidationService
     private function getValidationRules(): array
     {
         return [
-            'student_id_no' => ['required', 'string', 'max:50', new StudentIdFormat()],
+            'student_id_no' => ['nullable', 'string', 'max:50', new StudentIdFormat()],
             'full_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:Male,Female,Other'],
             'dob' => ['required', 'date', 'before:today'],
@@ -167,7 +167,7 @@ class ImportValidationService
             'province' => ['required', 'string', 'max:100'],
             'high_school' => ['required', 'string', 'max:255'],
             'selection_batch_id' => ['required', 'integer'],
-            'enrollment_status' => ['nullable', 'in:Pending,Enrolled,Rejected,Graduated,Dropped'],
+            'enrollment_status' => ['sometimes', 'in:Pending,Enrolled,Rejected,Graduated,Dropped'],
             'intake_year' => ['required', 'integer', 'digits:4'],
         ];
     }
@@ -175,7 +175,6 @@ class ImportValidationService
     private function getCustomMessages(): array
     {
         return [
-            'student_id_no.required' => 'Student ID is required.',
             'student_id_no.max' => 'Student ID must not exceed 50 characters.',
             'full_name.required' => 'Full name is required.',
             'full_name.max' => 'Full name must not exceed 255 characters.',
@@ -191,6 +190,7 @@ class ImportValidationService
             'province.required' => 'Province is required.',
             'selection_batch_id.required' => 'Selection batch is required.',
             'selection_batch_id.integer' => 'Selection batch ID must be an integer.',
+            'enrollment_status.in' => 'Enrollment status must be one of: Pending, Enrolled, Rejected, Graduated, Dropped.',
             'intake_year.required' => 'Intake year is required.',
             'intake_year.integer' => 'Intake year must be an integer.',
             'intake_year.digits' => 'Intake year must be a 4-digit year.',

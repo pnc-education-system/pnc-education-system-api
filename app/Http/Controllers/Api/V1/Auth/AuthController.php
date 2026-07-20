@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Http\Controllers\Api\V1\Concerns\AuditableLogger;
+use App\Mail\PasswordResetMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
@@ -196,10 +198,21 @@ class AuthController extends Controller
             'created_at' => now(),
         ]);
 
+        $resetLink = config('app.frontend_url') . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+
+        try {
+            Mail::to($user->email)->send(new PasswordResetMail($resetLink));
+        } catch (\Exception $e) {
+            \Log::error('Password reset email failed', [
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+            return $this->error('Failed to send reset email', 500, ['error' => $e->getMessage()]);
+        }
+
         return response()->json([
             'status' => 'success',
-            'message' => 'If the email exists, a reset token has been sent',
-            'reset_token' => $token,
+            'message' => 'If the email exists, a reset link has been sent',
         ], 200);
     }
 

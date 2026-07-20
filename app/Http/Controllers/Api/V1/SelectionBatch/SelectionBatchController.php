@@ -15,13 +15,15 @@ class SelectionBatchController extends Controller
 
     public function index(Request $request)
     {
-        $query = SelectionBatch::withCount('students')->with('creator');
+        $query = SelectionBatch::query();
 
         if ($request->has('year')) {
             $query->where('year', $request->year);
         }
 
-        $batches = $query->orderBy('year', 'desc')->orderBy('name', 'asc')->get();
+        $batches = $query->orderBy('year', 'desc')
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name', 'year', 'is_active']);
 
         return response()->json([
             'status' => 'success',

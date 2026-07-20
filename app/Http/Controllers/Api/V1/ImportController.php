@@ -7,7 +7,9 @@ use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Imports\StudentsPreviewImport;
 use App\Models\ImportError;
 use App\Models\ImportLog;
+use App\Models\SelectionBatch;
 use App\Services\Student\ImportValidationService;
+use App\Services\Student\StudentIdGenerator;
 use App\Services\Student\StudentImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,26 +50,33 @@ class ImportController extends Controller
         'intake_year',
     ];
 
+    private StudentIdGenerator $idGenerator;
+
     public function __construct(
         StudentImportService $importService,
-        ImportValidationService $validationService
+        ImportValidationService $validationService,
+        StudentIdGenerator $idGenerator
     ) {
         $this->importService = $importService;
         $this->validationService = $validationService;
+        $this->idGenerator = $idGenerator;
     }
 
     public function upload(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'file' => 'required|file|mimes:xlsx|max:' . config('import.max_file_size_kb', 10240),
+            'selection_batch_id' => 'required|integer|exists:selection_batches,id',
         ], [
             'file.required' => 'No file was uploaded. Please attach a .xlsx file to proceed.',
             'file.mimes'    => 'Invalid file format. Only .xlsx (Excel) files are accepted.',
             'file.max'      => 'File size exceeds the maximum allowed size of ' . (config('import.max_file_size_kb', 10240) / 1024) . ' MB.',
+            'selection_batch_id.required' => 'Selection batch is required.',
+            'selection_batch_id.exists'   => 'Selected batch does not exist.',
         ]);
 
         if ($validator->fails()) {
-            return $this->error($validator->errors()->first('file'), 422);
+            return $this->error($validator->errors()->first(), 422);
         }
 
         $file = $request->file('file');
@@ -76,9 +85,15 @@ class ImportController extends Controller
             return $this->error('The uploaded file is empty. Please upload a file containing student data.', 422);
         }
 
+        if (!class_exists(\ZipArchive::class)) {
+            return $this->error('Excel uploads require the PHP zip extension. Enable extension=zip in php.ini and restart PHP/Laragon.', 500);
+        }
+
+        $selectionBatch = $this->resolveSelectionBatch($request);
+
         try {
             $rows = Excel::toArray(new StudentsPreviewImport, $file);
-            $data = $rows[0] ?? [];
+            $data = $this->normalizeRows($rows[0] ?? [], $selectionBatch);
 
             if (empty($data)) {
                 return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
@@ -101,16 +116,42 @@ class ImportController extends Controller
                 return $this->error($message, 422);
             }
 
+
             $validationResult = $this->validationService->validate($data);
 
+            // Then generate IDs ONLY for valid rows — no gaps in the sequence
+            $validCount = $validationResult['summary']['valid'];
+            if ($validCount > 0) {
+                $batchYear = $selectionBatch?->year ?? (int)($data[0]['intake_year'] ?? date('Y'));
+                $newIds = $this->idGenerator->generateMultipleIds($validCount, $batchYear);
+
+                // Build a set of invalid row numbers for quick lookup
+                $invalidRows = [];
+                foreach ($validationResult['invalidRows'] as $invalidRow) {
+                    $invalidRows[] = $invalidRow['row'];
+                }
+
+                // Assign IDs to valid rows only
+                $idIndex = 0;
+                foreach ($data as $index => &$row) {
+                    if (!in_array($index + 1, $invalidRows)) {
+                        $row['student_id_no'] = $newIds[$idIndex];
+                        $validationResult['validRows'][$idIndex]['student_id_no'] = $newIds[$idIndex];
+                        $idIndex++;
+                    }
+                }
+                unset($row);
+            }
+
             $importLog = ImportLog::create([
-                'file_name'     => $file->getClientOriginalName(),
-                'file_path'     => $file->getRealPath(),
-                'imported_by'   => auth()->id(),
-                'total_rows'    => $validationResult['summary']['total'],
-                'success_count' => 0,
-                'error_count'   => $validationResult['summary']['invalid'],
-                'status'        => 'Pending',
+                'file_name'          => $file->getClientOriginalName(),
+                'file_path'          => $file->getRealPath(),
+                'selection_batch_id' => $request->input('selection_batch_id'),
+                'imported_by'        => auth()->id(),
+                'total_rows'         => $validationResult['summary']['total'],
+                'success_count'      => 0,
+                'error_count'        => $validationResult['summary']['invalid'],
+                'status'             => 'Pending',
             ]);
             if (!empty($validationResult['invalidRows'])) {
                 $errorRecords = [];
@@ -151,9 +192,14 @@ class ImportController extends Controller
                     'invalid_rows'   => $validationResult['summary']['invalid'],
                     'validation'     => $validationResult,
                     'rows'           => $data,
+                    'selection_batch' => $selectionBatch ? [
+                        'id'   => $selectionBatch->id,
+                        'name' => $selectionBatch->name,
+                        'year' => $selectionBatch->year,
+                    ] : null,
                 ],
             ], 201);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('File upload and validation failed', [
                 'error' => $e->getMessage(),
                 'file'  => $request->file('file')?->getClientOriginalName(),
@@ -167,7 +213,7 @@ class ImportController extends Controller
         $perPage = (int) $request->query('per_page', 15);
         $status  = $request->query('status');
 
-        $query = ImportLog::with(['importer:id,name,email'])
+        $query = ImportLog::with(['importer:id,name,email', 'batch:id,name,year'])
             ->orderByDesc('created_at');
 
         if ($status && in_array($status, ['Pending', 'Processing', 'Completed', 'Failed'])) {
@@ -184,6 +230,11 @@ class ImportController extends Controller
                 'total_rows'    => $log->total_rows,
                 'success_count' => $log->success_count,
                 'error_count'   => $log->error_count,
+                'selection_batch' => $log->batch ? [
+                    'id'   => $log->batch->id,
+                    'name' => $log->batch->name,
+                    'year' => $log->batch->year,
+                ] : null,
                 'imported_by'   => $log->importer ? [
                     'id'    => $log->importer->id,
                     'name'  => $log->importer->name,
@@ -211,7 +262,7 @@ class ImportController extends Controller
         $log = ImportLog::with(['importer:id,name,email', 'errors'])->find($import);
 
         if (!$log) {
-            return $this->error('Import log not found', 404);
+            return $this->error('The import record you are looking for could not be found. It may have been deleted or the ID is invalid.', 404);
         }
 
         return response()->json([
@@ -244,16 +295,23 @@ class ImportController extends Controller
         $log = ImportLog::find($import);
 
         if (!$log) {
-            return $this->error('Import log not found', 404);
+            return $this->error('The import record you are looking for could not be found. It may have been deleted or the ID is invalid.', 404);
         }
 
         if ($log->status !== 'Pending') {
-            return $this->error('Import has already been processed. Current status: ' . $log->status, 422);
+            $statusLabel = $log->status;
+            return $this->error('This file has already been imported (Status: ' . $statusLabel . '). Each file can only be processed once. Please upload a new file to import additional students.', 422);
         }
 
         $validator = Validator::make($request->all(), [
             'rows'   => 'required|array',
             'rows.*' => 'array',
+            'selection_batch_id' => 'sometimes|integer|exists:selection_batches,id',
+        ], [
+            'rows.required' => 'No student data was provided to import. Please try uploading the file again.',
+            'rows.array'    => 'Invalid student data format. Please try uploading the file again.',
+            'selection_batch_id.exists' => 'The selected batch does not exist. Please choose a valid batch.',
+            'selection_batch_id.integer' => 'The batch ID must be a valid number.',
         ]);
 
         if ($validator->fails()) {
@@ -261,10 +319,14 @@ class ImportController extends Controller
         }
 
         try {
+            $selectionBatch = $this->resolveSelectionBatch($request);
+            $rows = $this->normalizeRows($request->input('rows'), $selectionBatch);
+
             $result = $this->importService->commitById(
                 $log,
                 $request->input('rows'),
-                auth()->id()
+                auth()->id(),
+                $request->input('selection_batch_id')
             );
 
             return response()->json([
@@ -277,7 +339,16 @@ class ImportController extends Controller
                 'error'         => $e->getMessage(),
             ]);
 
-            return $this->error($e->getMessage(), 400);
+            $friendlyMessage = 'An error occurred while saving the imported students. ';
+            if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                $friendlyMessage .= 'Some student IDs already exist in the database. Please remove duplicates and try again.';
+            } elseif (str_contains($e->getMessage(), 'column')) {
+                $friendlyMessage .= 'The data format is invalid. Please check your file and try again.';
+            } else {
+                $friendlyMessage .= 'Please try again or contact support if the issue persists.';
+            }
+
+            return $this->error($friendlyMessage, 400);
         }
     }
     public function errors(int $import): JsonResponse
@@ -285,7 +356,7 @@ class ImportController extends Controller
         $log = ImportLog::with('errors')->find($import);
 
         if (!$log) {
-            return $this->error('Import log not found', 404);
+            return $this->error('The import record you are looking for could not be found. It may have been deleted or the ID is invalid.', 404);
         }
 
         $errors = $log->errors->map(fn (ImportError $e) => [
@@ -307,6 +378,15 @@ class ImportController extends Controller
         ], 200);
     }
 
+    private function resolveSelectionBatch(Request $request): ?SelectionBatch
+    {
+        $batchId = $request->input('selection_batch_id');
+        if (!$batchId) {
+            return null;
+        }
+        return SelectionBatch::find($batchId);
+    }
+
     private function validateHeaders(array $firstRow): array
     {
         $fileColumns = array_keys($firstRow);
@@ -325,14 +405,20 @@ class ImportController extends Controller
         return $errors;
     }
 
-    private function formatErrors(array $errors): string
+    private function normalizeRows(array $rows, ?SelectionBatch $selectionBatch): array
     {
-        $messages = [];
-
-        foreach ($errors as $field => $fieldErrors) {
-            $messages[] = $field . ': ' . implode(', ', $fieldErrors);
-        }
-
-        return implode('; ', $messages);
+        return array_map(function ($row) use ($selectionBatch) {
+            if (is_array($row)) {
+                // Ensure selection_batch_id is included in each row
+                if ($selectionBatch && !isset($row['selection_batch_id'])) {
+                    $row['selection_batch_id'] = $selectionBatch->id;
+                }
+                return $row;
+            }
+            return $row;
+        }, $rows);
     }
+
+
+
 }

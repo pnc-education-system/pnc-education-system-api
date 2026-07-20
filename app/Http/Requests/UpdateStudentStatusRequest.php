@@ -14,16 +14,8 @@ class UpdateStudentStatusRequest extends FormRequest
 
     public function rules(): array
     {
-        $validStatuses = implode(',', [
-            Student::STATUS_PENDING,
-            Student::STATUS_ENROLLED,
-            Student::STATUS_REJECTED,
-            Student::STATUS_GRADUATED,
-            Student::STATUS_DROPPED,
-        ]);
-
         return [
-            'status' => "required|string|in:{$validStatuses}",
+            'status' => 'required|string',
             'note'   => 'nullable|string|max:500',
         ];
     }

@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\Log;
 class StudentImportService
 {
     private ImportValidationService $validationService;
+    private StudentIdGenerator $idGenerator;
 
-    public function __construct(ImportValidationService $validationService)
+    public function __construct(ImportValidationService $validationService, StudentIdGenerator $idGenerator)
     {
         $this->validationService = $validationService;
+        $this->idGenerator = $idGenerator;
     }
 
     public function import(array $rows, string $fileName, int $userId): array
@@ -106,7 +108,7 @@ class StudentImportService
     private function buildStudentData(array $row, int $userId): array
     {
         return [
-            'student_id_no' => $row['student_id_no'],
+            'student_id_no' => $this->getOrGenerateStudentId($row),
             'full_name' => $row['full_name'],
             'gender' => $row['gender'],
             'dob' => $row['dob'],
@@ -120,6 +122,34 @@ class StudentImportService
             'created_by' => $userId,
             'photo_path' => null,
         ];
+    }
+
+    private function getOrGenerateStudentId(array $row): string
+    {
+        // If student_id_no is provided and not empty, use it
+        if (!empty($row['student_id_no'])) {
+            return $row['student_id_no'];
+        }
+        
+        // Otherwise, generate a new ID using the intake year
+        $intakeYear = $row['intake_year'] ?? date('Y');
+        return $this->idGenerator->generateNextId($intakeYear);
+    }
+
+    private function generateMissingIds(array $rows, ?int $batchYear = null): array
+    {
+        // Use the batch's year so IDs are consistent within a batch
+        $year = $batchYear ?? $rows[0]['intake_year'] ?? date('Y');
+        
+        $ids = $this->idGenerator->generateMultipleIds(count($rows), $year);
+        $idIndex = 0;
+
+        return array_map(function ($row) use (&$idIndex, $ids) {
+            if (empty($row['student_id_no'])) {
+                $row['student_id_no'] = $ids[$idIndex++];
+            }
+            return $row;
+        }, $rows);
     }
 
     private function logValidationErrors(int $importLogId, array $invalidRows): void
@@ -163,12 +193,23 @@ class StudentImportService
         return implode('; ', $messages);
     }
 
-    public function commitById(ImportLog $importLog, array $rows, int $userId): array
+    public function commitById(ImportLog $importLog, array $rows, int $userId, ?int $selectionBatchId = null): array
     {
+        // Preserve the original total_rows and validation error_count from upload
+        // so the import history shows the full picture (total from file, not just valid rows).
+        $validationErrorCount = $importLog->error_count;
+
         $importLog->update([
-            'total_rows'    => count($rows),
-            'status'        => 'Processing',
+            'status' => 'Processing',
         ]);
+
+        // Auto-generate IDs using the batch's year
+        $batchYear = null;
+        if ($selectionBatchId) {
+            $batch = \App\Models\SelectionBatch::find($selectionBatchId);
+            $batchYear = $batch?->year;
+        }
+        $rows = $this->generateMissingIds($rows, $batchYear);
 
         $chunkSize  = 100;
         $chunks     = array_chunk($rows, $chunkSize);
@@ -177,7 +218,7 @@ class StudentImportService
 
         foreach ($chunks as $chunkIndex => $chunk) {
             try {
-                DB::transaction(function () use ($chunk, &$totalSuccess, $userId) {
+                DB::transaction(function () use ($chunk, &$totalSuccess, $userId, $selectionBatchId) {
                     $insertData = [];
                     foreach ($chunk as $row) {
                         $insertData[] = [
@@ -189,7 +230,7 @@ class StudentImportService
                             'email'              => $row['email'] ?? null,
                             'province'           => $row['province'] ?? null,
                             'high_school'        => $row['high_school'] ?? null,
-                            'selection_batch_id' => $row['selection_batch_id'] ?? null,
+                            'selection_batch_id' => $selectionBatchId ?? $row['selection_batch_id'] ?? null,
                             'enrollment_status'  => $row['enrollment_status'] ?? 'Pending',
                             'intake_year'        => $row['intake_year'],
                             'created_by'         => $userId,
@@ -227,15 +268,15 @@ class StudentImportService
 
         $importLog->update([
             'success_count' => $totalSuccess,
-            'error_count'   => $totalFailed,
+            'error_count'   => $validationErrorCount + $totalFailed,
             'status'        => 'Completed',
         ]);
 
         return [
             'import_log_id' => $importLog->id,
-            'total_rows'    => count($rows),
+            'total_rows'    => $importLog->fresh()->total_rows,
             'imported'      => $totalSuccess,
-            'failed'        => $totalFailed,
+            'failed'        => $validationErrorCount + $totalFailed,
             'chunks'        => count($chunks),
         ];
     }
@@ -250,6 +291,10 @@ class StudentImportService
             'error_count'   => 0,
             'status'        => 'Processing',
         ]);
+
+        // Auto-generate IDs for rows that don't have them
+        $rows = $this->generateMissingIds($rows);
+
         $chunkSize = 100;
         $chunks = array_chunk($rows, $chunkSize);
 
