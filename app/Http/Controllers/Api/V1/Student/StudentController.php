@@ -102,6 +102,109 @@ class StudentController extends Controller
         ], 200);
     }
 
+    public function history($id)
+    {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return $this->error('Student not found', 404);
+        }
+
+        // 1. Status changes
+        $statusHistories = \App\Models\EnrollmentStatusHistory::where('student_id', $id)
+            ->with('changedBy')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => 'status_' . $item->id,
+                    'type' => 'status_change',
+                    'title' => 'Status updated to ' . $item->new_status,
+                    'description' => 'Changed from ' . $item->old_status . ($item->note ? '. Note: ' . $item->note : ''),
+                    'performed_by' => $item->changedBy?->name ?? 'System',
+                    'date' => $item->created_at?->format('Y-m-d H:i:s'),
+                ];
+            });
+
+        // 2. Profile updates (AuditLog)
+        $auditLogs = \App\Models\AuditLog::where('auditable_type', Student::class)
+            ->where('auditable_id', $id)
+            ->where('event', 'student_updated')
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($item) {
+                $descriptionParts = [];
+                if (!empty($item->old_values) && !empty($item->new_values)) {
+                    foreach ($item->old_values as $key => $oldVal) {
+                        $newVal = $item->new_values[$key] ?? null;
+                        if ($oldVal !== $newVal && $key !== 'updated_at') {
+                            $readableKey = ucfirst(str_replace('_', ' ', $key));
+                            $descriptionParts[] = "$readableKey changed from '" . ($oldVal ?? 'none') . "' to '" . ($newVal ?? 'none') . "'";
+                        }
+                    }
+                }
+                $description = empty($descriptionParts) 
+                    ? 'Student profile updated.' 
+                    : implode(', ', $descriptionParts);
+
+                return [
+                    'id' => 'audit_' . $item->id,
+                    'type' => 'record_update',
+                    'title' => 'Profile details updated',
+                    'description' => $description,
+                    'performed_by' => $item->user?->name ?? 'System',
+                    'date' => $item->created_at?->format('Y-m-d H:i:s'),
+                ];
+            });
+
+        // 3. Evaluations
+        $evaluations = \App\Models\Evaluation::where('student_id', $id)
+            ->with(['reviewer', 'evaluationForm'])
+            ->orderBy('submitted_at', 'desc')
+            ->get()
+            ->map(function ($item) {
+                $formTitle = $item->evaluationForm?->title ?? 'Student Evaluation';
+                return [
+                    'id' => 'eval_' . $item->id,
+                    'type' => 'evaluation',
+                    'title' => "Evaluation: $formTitle",
+                    'description' => "Period: {$item->evaluation_period}, Score: {$item->total_score}, Status: {$item->status}",
+                    'performed_by' => $item->reviewer?->name ?? 'System',
+                    'date' => ($item->submitted_at ?? $item->created_at)?->format('Y-m-d H:i:s'),
+                ];
+            });
+
+        // 4. Incident/Journal records (StudentRecords)
+        $records = \App\Models\StudentRecord::where('student_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => 'record_' . $item->id,
+                    'type' => 'record_update',
+                    'title' => 'Journal Record: ' . ($item->record_type ?? 'General'),
+                    'description' => $item->details ?? '',
+                    'performed_by' => 'System',
+                    'date' => $item->created_at?->format('Y-m-d H:i:s') ?? now()->format('Y-m-d H:i:s'),
+                ];
+            });
+
+        // Merge all and sort by date descending
+        $history = $statusHistories
+            ->concat($auditLogs)
+            ->concat($evaluations)
+            ->concat($records)
+            ->sortByDesc('date')
+            ->values();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Student history retrieved successfully',
+            'data' => $history,
+        ], 200);
+    }
+
     public function updateStatus(UpdateStudentStatusRequest $request, $id)
     {
         $student = Student::find($id);
