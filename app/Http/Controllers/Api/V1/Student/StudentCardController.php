@@ -48,4 +48,24 @@ class StudentCardController extends Controller
             'data' => new StudentProfileResource($student),
         ]);
     }
+
+    public function verify(string $qrToken)
+    {
+        $student = $this->studentCardService->findStudentByQrToken($qrToken);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or unknown QR token.',
+            ], 404);
+        }
+
+        $student->load(['cards', 'enrollmentStatusHistories.changedBy', 'selectionBatch', 'creator']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student profile and history retrieved successfully.',
+            'data' => new StudentProfileResource($student),
+        ]);
+    }
 }
