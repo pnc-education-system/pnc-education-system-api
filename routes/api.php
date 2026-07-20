@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
@@ -7,7 +8,9 @@ use App\Http\Controllers\Api\V1\Student\StudentController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
+use App\Http\Controllers\Api\V1\Student\StudentTimelineController;
 use App\Http\Controllers\DashboardController;
+
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -44,6 +47,9 @@ Route::prefix('v1')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
         });
         Route::get('students/{id}', [StudentController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view,students.edit,enrollment.manage');
+        Route::get('students/{id}/timeline', [StudentTimelineController::class, 'index'])
             ->whereNumber('id')
             ->middleware('permission:students.view,students.edit,enrollment.manage');
         Route::middleware('permission:students.edit')->group(function () {
