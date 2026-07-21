@@ -46,6 +46,9 @@ Route::prefix('v1')->group(function () {
         Route::get('students/{id}', [StudentController::class, 'show'])
             ->whereNumber('id')
             ->middleware('permission:students.view,students.edit,enrollment.manage');
+        Route::get('students/{id}/history', [StudentController::class, 'history'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view');
         Route::middleware('permission:students.edit')->group(function () {
             Route::post('students', [StudentController::class, 'store']);
             Route::post('students/bulk-status', [StudentController::class, 'bulkUpdateStatus']);
