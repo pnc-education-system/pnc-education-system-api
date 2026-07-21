@@ -80,5 +80,11 @@ Route::prefix('v1')->group(function () {
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
         });
+
+        Route::middleware('permission:cards.generate')->group(function () {
+            Route::post('student-cards/{id}/reprint', [CardsController::class, 'reprint'])->whereNumber('id');
+
+        });
+
     });
 });
