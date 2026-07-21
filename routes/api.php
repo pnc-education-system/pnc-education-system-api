@@ -60,6 +60,7 @@ Route::prefix('v1')->group(function () {
             Route::post('students/bulk-confirm', [StudentController::class, 'bulkConfirm']);
             Route::put('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
             Route::post('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
+            Route::post('students/{id}/photo', [StudentController::class, 'uploadPhoto'])->whereNumber('id');
         });
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
@@ -75,6 +76,9 @@ Route::prefix('v1')->group(function () {
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);
         Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
 
+
+        Route::get('selection-batches', [SelectionBatchController::class, 'index']);
+        Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
 
         Route::middleware('permission:batches.manage')->group(function () {
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);

@@ -11,6 +11,7 @@ use App\Http\Requests\StudentUpdateRequest;
 use App\Http\Requests\UpdateStudentStatusRequest;
 use App\Http\Requests\BulkConfirmStudentsRequest;
 use App\Http\Requests\BulkUpdateStudentStatusRequest;
+use App\Http\Requests\StoreStudentPhotoRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -295,6 +296,38 @@ class StudentController extends Controller
             }
 
             return $this->error('Failed to update student: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function uploadPhoto(StoreStudentPhotoRequest $request, $id)
+    {
+        $student = Student::find($id);
+        if(!$student){
+            return $this->error('Student not found', 404);
+        }
+        $oldPhotoPath = $student->photo_path;
+        $newPhotoPath = null;
+        try{
+            $newPhotoPath = $request->file('photo')->store('students/photos', 'public');
+            $student->update(['photo_path'=> $newPhotoPath]);
+            if($oldPhotoPath){
+                $this->deleteStudentPhoto($oldPhotoPath);
+            }
+
+            $this->logAudit($student, 'student_photo_update', $request);
+            return response()->json([
+                'status'=>'success',
+                'message'=>'Photo save successfully.',
+                'data'=>[
+                    'photo_path'=>$newPhotoPath,
+                    'photo_url'=> Storage::disk('public')->url($newPhotoPath),
+                ],
+            ],200);
+        }catch(\Exception $e){
+            if($newPhotoPath){
+                Storage::disk('public')->delete($newPhotoPath);
+            }
+            return $this->error('Failed to save photo:' . $e->getMessage(), 500);
         }
     }
 

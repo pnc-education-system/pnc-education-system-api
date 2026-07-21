@@ -27,6 +27,31 @@ class ImportController extends Controller
 
     private StudentIdGenerator $idGenerator;
 
+    private array $requiredColumns = [
+        'student_id_no',
+        'full_name',
+        'gender',
+        'province',
+        'dob',
+        'selection_batch_id',
+        'enrollment_status',
+        'intake_year',
+    ];
+
+    private array $systemColumns = [
+        'student_id_no',
+        'full_name',
+        'gender',
+        'dob',
+        'phone',
+        'email',
+        'province',
+        'high_school',
+        'selection_batch_id',
+        'enrollment_status',
+        'intake_year',
+    ];
+
     public function __construct(
         StudentImportService $importService,
         ImportValidationService $validationService,
@@ -74,7 +99,23 @@ class ImportController extends Controller
                 return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
             }
 
-            // Validate first (IDs are empty since CSV doesn't include student_id_no column)
+            $headerErrors = $this->validateHeaders($data[0]);
+            if (!empty($headerErrors)) {
+                $message = '';
+
+                if (isset($headerErrors['missing'])) {
+                    $missing = array_map(fn($col) => str_replace('_', ' ', $col), $headerErrors['missing']);
+                    $message .= 'The file is missing these required column(s): ' . implode(', ', $missing) . '. Please add them and upload again.';
+                }
+
+                if (isset($headerErrors['extra'])) {
+                    $extra = array_map(fn($col) => str_replace('_', ' ', $col), $headerErrors['extra']);
+                    $message .= ($message ? ' ' : '') . 'The file contains column(s) that the system does not recognise: ' . implode(', ', $extra) . '. Please remove them and try again.';
+                }
+
+                return $this->error($message, 422);
+            }
+
             $validationResult = $this->validationService->validate($data);
 
             // Then generate IDs ONLY for valid rows — no gaps in the sequence
@@ -345,6 +386,24 @@ class ImportController extends Controller
         return SelectionBatch::find($batchId);
     }
 
+    private function validateHeaders(array $firstRow): array
+    {
+        $fileColumns = array_keys($firstRow);
+        $errors = [];
+
+        $missing = array_diff($this->requiredColumns, $fileColumns);
+        if (!empty($missing)) {
+            $errors['missing'] = array_values($missing);
+        }
+
+        $extra = array_diff($fileColumns, $this->systemColumns);
+        if (!empty($extra)) {
+            $errors['extra'] = array_values($extra);
+        }
+
+        return $errors;
+    }
+
     private function normalizeRows(array $rows, ?SelectionBatch $selectionBatch): array
     {
         return array_map(function ($row) use ($selectionBatch) {
@@ -358,7 +417,6 @@ class ImportController extends Controller
             return $row;
         }, $rows);
     }
-
 
 
 }
