@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Student\StudentController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
+use App\Http\Controllers\Api\V1\Student\StudentCardController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -47,6 +48,9 @@ Route::prefix('v1')->group(function () {
             ->whereNumber('id')
             ->middleware('permission:students.view,students.edit,enrollment.manage');
         Route::get('students/{id}/history', [StudentController::class, 'history'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view');
+        Route::post('students/{id}/card', [StudentCardController::class, 'generateCard'])
             ->whereNumber('id')
             ->middleware('permission:students.view');
         Route::middleware('permission:students.edit')->group(function () {
