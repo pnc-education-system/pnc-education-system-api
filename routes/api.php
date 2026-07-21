@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Student\StudentController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
+use App\Http\Controllers\Api\V1\Record\RecordAttachmentController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
@@ -63,6 +64,11 @@ Route::prefix('v1')->group(function () {
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
+        });
+
+        Route::middleware('permission:records.manage')->group(function () {
+            Route::post('records/{record}/attachments', [RecordAttachmentController::class, 'store'])
+                ->whereNumber('record');
         });
     });
 });
