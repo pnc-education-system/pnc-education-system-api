@@ -11,7 +11,7 @@ use App\Models\StudentCard;
 use App\Http\Resources\StudentResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Str;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
 class CardsController extends Controller
@@ -75,52 +75,72 @@ class CardsController extends Controller
             return $this->error('Validation failed', 422, $validator->errors());
         }
 
-        $selectionBatchId = $request->input('selection_batch_id');
-        $templateId       = $request->input('template_id');
+        $selectionBatchId = (int) $request->input('selection_batch_id');
+        $templateId       = (int) $request->input('template_id');
 
-        // Dispatch the queued job
-        $jobId = Str::uuid()->toString();
-        $job = new GenerateBatchCards($selectionBatchId, $templateId);
-        dispatch($job);
+        try {
+            // Dispatch the queued job
+            $jobId = Str::uuid()->toString();
+            $job = new GenerateBatchCards($selectionBatchId, $templateId);
+            dispatch($job);
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Batch card generation has been queued.',
-            'data'    => [
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Batch card generation has been queued.',
+                'data'    => [
+                    'selection_batch_id' => $selectionBatchId,
+                    'template_id'        => $templateId,
+                    'job_id'             => $jobId,
+                ],
+            ], 202);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to dispatch batch card job', [
                 'selection_batch_id' => $selectionBatchId,
                 'template_id'        => $templateId,
-                'job_id'             => $jobId,
-            ],
-        ], 202);
+                'error'              => $e->getMessage(),
+                'trace'              => $e->getTraceAsString(),
+            ]);
+
+            return $this->error('Failed to queue batch card generation: ' . $e->getMessage(), 500);
+        }
     }
 
     public function downloadByBatch($batchId)
     {
-        $batch = SelectionBatch::find($batchId);
+        try {
+            $batch = SelectionBatch::find($batchId);
 
-        if (!$batch) {
-            return $this->error('Selection batch not found', 404);
+            if (!$batch) {
+                return $this->error('Selection batch not found', 404);
+            }
+
+            // Find the latest card PDF for this batch
+            $latestCard = StudentCard::whereHas('student', function ($q) use ($batchId) {
+                $q->where('selection_batch_id', $batchId);
+            })->whereNotNull('pdf_path')->latest()->first();
+
+            if (!$latestCard || !$latestCard->pdf_path) {
+                return $this->error('No generated PDF found for this batch. Please run card generation first.', 404);
+            }
+
+            $disk = config('cards.disk', 'public');
+
+            if (!Storage::disk($disk)->exists($latestCard->pdf_path)) {
+                return $this->error('PDF file not found on storage.', 404);
+            }
+
+            $batchName = $batch->name;
+            $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', $batchName);
+            $filename = "cards_{$sanitized}.pdf";
+
+            return Storage::disk($disk)->download($latestCard->pdf_path, $filename);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to download batch PDF', [
+                'batch_id' => $batchId,
+                'error'    => $e->getMessage(),
+            ]);
+
+            return $this->error('Failed to download PDF: ' . $e->getMessage(), 500);
         }
-
-        // Find the latest card PDF for this batch
-        $latestCard = StudentCard::whereHas('student', function ($q) use ($batchId) {
-            $q->where('selection_batch_id', $batchId);
-        })->whereNotNull('pdf_path')->latest()->first();
-
-        if (!$latestCard || !$latestCard->pdf_path) {
-            return $this->error('No generated PDF found for this batch. Please run card generation first.', 404);
-        }
-
-        $disk = config('cards.disk', 'public');
-
-        if (!Storage::disk($disk)->exists($latestCard->pdf_path)) {
-            return $this->error('PDF file not found on storage.', 404);
-        }
-
-        $batchName = $batch->name;
-        $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', $batchName);
-        $filename = "cards_{$sanitized}.pdf";
-
-        return Storage::disk($disk)->download($latestCard->pdf_path, $filename);
     }
 }
