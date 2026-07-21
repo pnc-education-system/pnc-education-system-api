@@ -11,6 +11,7 @@ use App\Http\Requests\StudentUpdateRequest;
 use App\Http\Requests\UpdateStudentStatusRequest;
 use App\Http\Requests\BulkConfirmStudentsRequest;
 use App\Http\Requests\BulkUpdateStudentStatusRequest;
+use App\Http\Requests\StoreStudentPhotoRequest;
 use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -144,8 +145,8 @@ class StudentController extends Controller
                         }
                     }
                 }
-                $description = empty($descriptionParts) 
-                    ? 'Student profile updated.' 
+                $description = empty($descriptionParts)
+                    ? 'Student profile updated.'
                     : implode(', ', $descriptionParts);
 
                 return [
@@ -297,7 +298,6 @@ class StudentController extends Controller
             return $this->error('Failed to update student: ' . $e->getMessage(), 500);
         }
     }
-
     private function deleteStudentPhoto(string $path): void
     {
         $photoPath = $this->normalizeStudentPhotoPath($path);
@@ -354,6 +354,41 @@ class StudentController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             return $this->error('Failed to bulk update student status: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function uploadPhoto(StoreStudentPhotoRequest $request, $id)
+    {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return $this->error('Student not found', 404);
+        }
+
+        $oldPhotoPath = $student->photo_path;
+
+        try {
+            $newPhotoPath = $request->file('photo')->store('students/photos', 'public');
+
+            $student->update(['photo_path' => $newPhotoPath]);
+
+            if ($oldPhotoPath) {
+                $this->deleteStudentPhoto($oldPhotoPath);
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Student photo uploaded successfully',
+                'data'    => [
+                    'photo_url' => url("storage/{$newPhotoPath}"),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            if (isset($newPhotoPath)) {
+                Storage::disk('public')->delete($newPhotoPath);
+            }
+
+            return $this->error('Failed to upload photo: ' . $e->getMessage(), 500);
         }
     }
 
