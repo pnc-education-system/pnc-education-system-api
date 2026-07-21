@@ -15,6 +15,7 @@ use App\Http\Resources\StudentResource;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -87,25 +88,81 @@ class StudentController extends Controller
         ], 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $student = Student::with([
-            'selectionBatch',
-            'records.attachments',
-            'evaluations.answers',
-            'evaluations.evaluationForm',
-            'cards',
-            'enrollmentStatusHistories',
-        ])->find($id);
+        // Parse ?include= to request only needed relationships (comma-separated)
+        // Default (no ?include) loads all for backward compatibility
+        $allowedIncludes = ['records', 'evaluations', 'cards', 'histories', 'enrollment_status_histories'];
+        $requestedIncludes = $request->filled('include')
+            ? array_intersect(
+                array_map('trim', explode(',', $request->input('include'))),
+                $allowedIncludes
+            )
+            : $allowedIncludes;
+
+        // Default limits with capping to prevent abuse
+        $limits = [
+            'records'     => min(max((int) $request->input('records_per_page', 10), 1), 50),
+            'evaluations' => min(max((int) $request->input('evaluations_per_page', 10), 1), 50),
+            'cards'       => min(max((int) $request->input('cards_per_page', 5), 1), 50),
+            'histories'   => min(max((int) $request->input('histories_per_page', 10), 1), 50),
+        ];
+
+        // Build a unique cache key — includes a version counter so updates bust the cache
+        $version = Cache::remember('student_version_' . $id, now()->addDays(1), fn () => 1);
+        $cacheKey = 'student_detail_' . $id . '_v' . $version . '_' . md5(json_encode($requestedIncludes) . json_encode($limits));
+
+        $student = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($id, $requestedIncludes, $limits) {
+            $query = Student::query();
+
+            // Always load the basic relationship
+            $query->with('selectionBatch');
+
+            // Conditionally load relationships with limits and descending order (newest first)
+            if (in_array('records', $requestedIncludes)) {
+                $query->with(['records' => function ($q) use ($limits) {
+                    $q->orderBy('record_date', 'desc')
+                      ->orderBy('created_at', 'desc')
+                      ->take($limits['records']);
+                }]);
+                $query->with('records.attachments');
+            }
+
+            if (in_array('evaluations', $requestedIncludes)) {
+                $query->with(['evaluations' => function ($q) use ($limits) {
+                    $q->latest()->take($limits['evaluations']);
+                }]);
+                $query->with('evaluations.answers');
+                $query->with('evaluations.evaluationForm');
+            }
+
+            if (in_array('cards', $requestedIncludes)) {
+                $query->with(['cards' => function ($q) use ($limits) {
+                    $q->latest()->take($limits['cards']);
+                }]);
+            }
+
+            if (in_array('histories', $requestedIncludes) || in_array('enrollment_status_histories', $requestedIncludes)) {
+                $query->with(['enrollmentStatusHistories' => function ($q) use ($limits) {
+                    $q->latest()->take($limits['histories']);
+                }]);
+            }
+
+            return $query->find($id);
+        });
 
         if (!$student) {
             return $this->error('Student not found', 404);
         }
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Student retrieved successfully',
-            'data' => new StudentResource($student),
+            'data'    => new StudentResource($student),
+            'meta'    => [
+                'includes' => $requestedIncludes,
+                'limits'   => $limits,
+            ],
         ], 200);
     }
 
@@ -134,6 +191,8 @@ class StudentController extends Controller
 
         try {
             $history = $student->transitionStatus($newStatus, $note);
+
+            $this->clearStudentCache($student->id);
 
             return response()->json([
                 'status'  => 'success',
@@ -184,6 +243,8 @@ class StudentController extends Controller
             if ($newPhotoPath && $oldPhotoPath) {
                 $this->deleteStudentPhoto($oldPhotoPath);
             }
+
+            $this->clearStudentCache($student->id);
 
             $student = $student->fresh()->load('selectionBatch');
             $this->logAudit($student, 'student_updated', $request, $oldValues, $student->toArray());
@@ -242,6 +303,11 @@ class StudentController extends Controller
                 }
             });
 
+            // Clear cache for all updated students
+            foreach ($studentIds as $studentId) {
+                $this->clearStudentCache($studentId);
+            }
+
             $updatedCount = count($updatedStudents);
 
             return response()->json([
@@ -270,6 +336,11 @@ class StudentController extends Controller
                 Student::whereIn('id', $studentIds)->update(['is_confirmed' => true]);
             });
 
+            // Clear cache for all confirmed students
+            foreach ($studentIds as $studentId) {
+                $this->clearStudentCache($studentId);
+            }
+
             $confirmedCount = count($studentIds);
 
             return response()->json([
@@ -286,5 +357,19 @@ class StudentController extends Controller
             ]);
             return $this->error('Failed to bulk confirm students: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Bust all cached student detail responses for the given student ID.
+     *
+     * Increments a version counter whose value is embedded in every detail cache key.
+     * The next request to the show() endpoint will compute a new (higher) version,
+     * causing a cache miss and re-fetching fresh data from the database.
+     *
+     * Works with any cache driver (database, file, redis, memcached, etc.).
+     */
+    private function clearStudentCache(int $studentId): void
+    {
+        Cache::increment('student_version_' . $studentId);
     }
 }
