@@ -60,6 +60,20 @@ class StudentCardReprintTest extends TestCase
     }
 
     /** @test */
+    public function reprint_accepts_student_id_and_updates_the_related_card(): void
+    {
+        $card = $this->createCard(['printed_count' => 0]);
+
+        $response = $this->withHeader('Authorization', "Bearer {$this->token}")
+            ->postJson("/api/v1/student-cards/{$card->student_id}/reprint");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('message', 'Card reprinted successfully')
+            ->assertJsonPath('data.printed_count', 1);
+    }
+
+    /** @test */
     public function reprint_twice_increases_count_by_two(): void
     {
         $card = $this->createCard(['printed_count' => 0]);

@@ -112,6 +112,58 @@ class CardsController extends Controller
         }
     }
 
+    /**
+     * Bulk reprint cards for given student IDs.
+     * Creates a card if one doesn't exist yet, then increments printed_count.
+     *
+     * POST /api/v1/cards/reprint
+     */
+    public function bulkReprint(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'student_ids'   => 'required|array|min:1',
+            'student_ids.*' => 'integer|exists:students,id',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation failed', 422, $validator->errors());
+        }
+
+        $studentIds = $request->input('student_ids');
+        $results = [];
+
+        foreach ($studentIds as $studentId) {
+            try {
+                $card = $this->cardService->reprint((int) $studentId);
+                $results[] = [
+                    'student_id' => (int) $studentId,
+                    'status'     => 'success',
+                    'card_url'   => $card->pdf_path ? asset('storage/' . $card->pdf_path) : null,
+                    'qr_data'    => $card->qr_token,
+                ];
+            } catch (\Throwable $e) {
+                $results[] = [
+                    'student_id' => (int) $studentId,
+                    'status'     => 'failed',
+                    'error'      => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Reprint processed',
+            'data'    => [
+                'results' => $results,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Increment the printed_count of the given student card.
+     *
+     * POST /api/v1/student-cards/{id}/reprint
+     */
     public function reprint(int $id): \Illuminate\Http\JsonResponse
     {
         try {

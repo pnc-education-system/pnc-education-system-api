@@ -69,6 +69,7 @@ Route::prefix('v1')->group(function () {
             Route::get('students-by-batch', [CardsController::class, 'studentsByBatch']);
             Route::post('batch', [CardsController::class, 'batch']);
             Route::get('download/{batchId}', [CardsController::class, 'downloadByBatch'])->whereNumber('batchId');
+            Route::post('reprint', [CardsController::class, 'bulkReprint'])->middleware('permission:cards.generate');
         });
 
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);
