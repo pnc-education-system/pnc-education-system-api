@@ -48,6 +48,7 @@ Route::prefix('v1')->group(function () {
         Route::get('students/{id}', [StudentController::class, 'show'])
             ->whereNumber('id')
             ->middleware('permission:students.view,students.edit,enrollment.manage');
+            
         Route::middleware('permission:students.edit')->group(function () {
             Route::post('students', [StudentController::class, 'store']);
             Route::post('students/bulk-status', [StudentController::class, 'bulkUpdateStatus']);
@@ -56,6 +57,9 @@ Route::prefix('v1')->group(function () {
             Route::post('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
             Route::post('students/{id}/photo', [StudentController::class, 'uploadPhoto'])->whereNumber('id');
         });
+        Route::post('students/{id}/card', [StudentCardController::class, 'generateCard'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view,students.edit,enrollment.manage');
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
         });
@@ -63,7 +67,14 @@ Route::prefix('v1')->group(function () {
             Route::get('templates', [CardsController::class, 'templates']);
             Route::get('students-by-batch', [CardsController::class, 'studentsByBatch']);
             Route::post('batch', [CardsController::class, 'batch']);
-            Route::get('download/{batchId}', [CardsController::class, 'downloadByBatch'])->whereNumber('batchId');
+            Route::post('generate/{studentId}', [CardsController::class, 'generate'])->whereNumber('studentId');
+            Route::get('download/{studentId}', [CardsController::class, 'download'])->whereNumber('studentId');
+            Route::get('download/batch/{batchId}', [CardsController::class, 'downloadByBatch'])->whereNumber('batchId');
+            Route::post('batch-download', [CardsController::class, 'batchDownload']);
+        });
+
+        Route::middleware('permission:cards.generate')->group(function () {
+            Route::post('cards/reprint', [CardsController::class, 'batchReprint']);
         });
 
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);
@@ -74,11 +85,6 @@ Route::prefix('v1')->group(function () {
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
-        });
-
-        Route::middleware('permission:cards.generate')->group(function () {
-            Route::post('student-cards/{id}/reprint', [CardsController::class, 'reprint'])->whereNumber('id');
-
         });
 
     });

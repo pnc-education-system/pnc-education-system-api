@@ -36,8 +36,19 @@ class StudentCardController extends Controller
         $photoMimeType = mime_content_type($photoAbsolutePath) ?: 'image/jpeg';
         $photoBase64 = 'data:' . $photoMimeType . ';base64,' . base64_encode(file_get_contents($photoAbsolutePath));
 
-        // 2. Generate QR Code containing Student ID No as Base64 SVG
-        $qrRaw = QrCode::format('svg')->size(120)->margin(1)->generate($student->student_id_no);
+        // 2. Generate QR Code with student verification URL (matches frontend format)
+        $origin = rtrim(config('app.url'), '/');
+        $params = http_build_query([
+            'name'   => $student->full_name ?? '',
+            'gender' => $student->gender ?? '',
+            'batch'  => $student->selection_batch_name ?? '',
+            'year'   => $student->intake_year ?? '',
+            'status' => $student->enrollment_status ?? '',
+            'dob'    => $student->dob ? $student->dob->format('Y-m-d') : '',
+            'province' => $student->province ?? '',
+        ]);
+        $verifyUrl = $origin . '/verify/' . urlencode($student->student_id_no) . '?' . $params;
+        $qrRaw = QrCode::format('svg')->size(120)->margin(1)->generate($verifyUrl);
         $qrCodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrRaw);
 
         // 3. Render A4 PDF

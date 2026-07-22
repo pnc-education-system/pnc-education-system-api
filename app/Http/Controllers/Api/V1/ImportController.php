@@ -25,8 +25,6 @@ class ImportController extends Controller
 
     private ImportValidationService $validationService;
 
-    private StudentIdGenerator $idGenerator;
-
     private array $systemColumns = [
         'student_id_no',
         'full_name',

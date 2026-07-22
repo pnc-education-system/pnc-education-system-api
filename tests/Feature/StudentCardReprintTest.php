@@ -155,6 +155,7 @@ class StudentCardReprintTest extends TestCase
             'full_name'          => 'Test Student',
             'gender'             => 'Male',
             'dob'                => '2000-01-01',
+            'high_school'        => 'Test High School',
             'selection_batch_id' => $batch->id,
             'enrollment_status'  => 'Pending',
             'intake_year'        => 2025,

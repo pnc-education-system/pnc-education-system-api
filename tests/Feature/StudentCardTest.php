@@ -53,6 +53,7 @@ class StudentCardTest extends TestCase
             'selection_batch_id' => $this->batch->id,
             'enrollment_status'  => 'Enrolled',
             'intake_year'        => 2026,
+            'high_school'        => 'Test High School',
             'photo_path'         => null,
             'created_by'         => $this->user->id,
         ]);
@@ -85,6 +86,7 @@ class StudentCardTest extends TestCase
             'selection_batch_id' => $this->batch->id,
             'enrollment_status'  => 'Enrolled',
             'intake_year'        => 2026,
+            'high_school'        => 'Test High School',
             'photo_path'         => $photoPath,
             'created_by'         => $this->user->id,
         ]);

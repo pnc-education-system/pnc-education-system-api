@@ -372,19 +372,19 @@ class CardPdfGenerator
         }
 
         // Try storage/app/public/...
-        $storagePath = storage_path('app/public/' . $path);
+        $storagePath = storage_path('app/public/' . ltrim($path, '/\\'));
         if (file_exists($storagePath)) {
             return $storagePath;
         }
 
         // Try storage/app/...
-        $storagePath2 = storage_path('app/' . $path);
+        $storagePath2 = storage_path('app/' . ltrim($path, '/\\'));
         if (file_exists($storagePath2)) {
             return $storagePath2;
         }
 
         // Try public/storage/...
-        $publicPath = public_path('storage/' . $path);
+        $publicPath = public_path('storage/' . ltrim($path, '/\\'));
         if (file_exists($publicPath)) {
             return $publicPath;
         }
