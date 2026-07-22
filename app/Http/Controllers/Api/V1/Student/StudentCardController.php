@@ -88,4 +88,24 @@ class StudentCardController extends Controller
             'data' => new StudentProfileResource($student),
         ]);
     }
+
+    public function verifyById(int $studentId)
+    {
+        $student = $this->studentCardService->findStudentById($studentId);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.',
+            ], 404);
+        }
+
+        $student->load(['cards', 'enrollmentStatusHistories.changedBy', 'selectionBatch', 'creator']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student profile retrieved successfully.',
+            'data' => new StudentProfileResource($student),
+        ]);
+    }
 }
