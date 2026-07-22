@@ -221,7 +221,7 @@ class StudentIdCardTest extends TestCase
         // Act: user without students.view permission
         $response = $this->withHeader('Authorization', "Bearer {$viewerToken}")
             ->getJson('/api/v1/students/1/id-card');
-
+            
         // Assert: Permission middleware blocks with 403
         $response->assertStatus(403);
     }
