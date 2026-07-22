@@ -117,7 +117,7 @@ class StudentImportService
             'province' => $row['province'] ?? null,
             'high_school' => $row['high_school'] ?? null,
             'selection_batch_id' => $row['selection_batch_id'],
-            'enrollment_status' => $row['enrollment_status'],
+            'enrollment_status' => $row['enrollment_status'] ?? 'Pending',
             'intake_year' => $row['intake_year'],
             'created_by' => $userId,
             'photo_path' => null,

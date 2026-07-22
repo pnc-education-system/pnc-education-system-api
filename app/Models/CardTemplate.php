@@ -17,6 +17,7 @@ class CardTemplate extends Model
     {
         return [
             'is_default' => 'boolean',
+            'layout_json' => 'array',
         ];
     }
 
