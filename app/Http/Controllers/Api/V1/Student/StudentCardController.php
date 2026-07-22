@@ -40,7 +40,27 @@ class StudentCardController extends Controller
             ], 404);
         }
 
-        $student->load('cards');
+        $student->load(['cards', 'selectionBatch']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student profile retrieved successfully.',
+            'data' => new StudentProfileResource($student),
+        ]);
+    }
+
+    public function resolveByStudentId(string $student_id_no)
+    {
+        $student = $this->studentCardService->findStudentByStudentIdNo($student_id_no);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found with the given ID.',
+            ], 404);
+        }
+
+        $student->load(['cards', 'selectionBatch']);
 
         return response()->json([
             'success' => true,

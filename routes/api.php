@@ -17,6 +17,7 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::get('/student-cards/qr/{qr_token}', [StudentCardController::class, 'resolveQr']);
+    Route::get('/student-cards/student/{student_id_no}', [StudentCardController::class, 'resolveByStudentId']);
 
     Route::middleware('jwt.auth')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);

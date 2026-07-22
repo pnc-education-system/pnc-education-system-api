@@ -53,4 +53,9 @@ class StudentCardService
     {
         return $this->findStudentByQrToken($qrToken) !== null;
     }
+
+    public function findStudentByStudentIdNo(string $studentIdNo): ?Student
+    {
+        return Student::where('student_id_no', $studentIdNo)->first();
+    }
 }
