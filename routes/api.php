@@ -17,20 +17,17 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::get('/student-cards/qr/{qr_token}', [StudentCardController::class, 'resolveQr']);
-<<<<<<< HEAD
     Route::get('/student-cards/student/{student_id_no}', [StudentCardController::class, 'resolveByStudentId']);
-=======
     Route::get('/cards/verify/{qrToken}', [StudentCardController::class, 'verify']);
->>>>>>> 3fd32da7edbb21ee210c1032ee7dc2dc4c0b14fc
 
     Route::middleware('jwt.auth')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::get('dashboard/enrollment', [DashboardController::class, 'enrollmentStats']);
-        
+
         Route::post('/student-cards', [StudentCardController::class, 'store']);
-        
+
         Route::middleware('permission:users.manage')->group(function () {
             Route::apiResource('users', UserController::class);
             Route::patch('users/{user}/toggle', [UserController::class, 'toggle']);
