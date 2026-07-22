@@ -1,0 +1,142 @@
+{
+  "info": {
+    "name": "ID Card Endpoint — MVP Tests",
+    "description": "Tests for GET /students/{id}/id-card endpoint.\n\n## Setup\n1. Set `base_url` (e.g. http://localhost:8000/api)\n2. Set `email` / `password` for admin credentials\n3. Run **🔐 Login** → then **👤 Select First Student** → then ID card tests\n\nNo manual `student_id` config needed — auto-fetched from API.\n\n## Expected Response (200)\n```json\n{\n    \"data\": {\n        \"student_code\": \"PNC2026-001\",\n        \"full_name\": \"John Doe\",\n        \"photo\": \"http://localhost/storage/students/photos/abc.jpg\",\n        \"batch\": \"2026\",\n        \"qr_code\": \"http://localhost/storage/qr/PNC2026-001.png\",\n        \"template\": \"default\"\n    }\n}\n```",
+    "schema": "https://schema.postman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",   "value": "http://localhost:8000/api", "type": "string" },
+    { "key": "email",      "value": "admin@pnc.edu.kh",         "type": "string" },
+    { "key": "password",   "value": "Admin@123456",             "type": "string" },
+    { "key": "jwt_token",  "value": "",                         "type": "string" },
+    { "key": "student_id", "value": "",                         "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Login",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Has access_token', () => pm.expect(json).to.have.property('access_token'));",
+            "pm.collectionVariables.set('jwt_token', json.access_token);"
+          ],
+          "type": "text/javascript"
+        }
+      }],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"{{email}}\", \"password\": \"{{password}}\"}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "{{base_url}}/v1/auth/login", "host": ["{{base_url}}"], "path": ["v1", "auth", "login"] }
+      }
+    },
+    {
+      "name": "👤 Select First Student",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "const students = json.data?.data || json.data;",
+            "pm.test('Has at least one student', () => pm.expect(students.length).to.be.at.least(1));",
+            "const firstId = Array.isArray(students) ? students[0].id : students[0].id;",
+            "pm.collectionVariables.set('student_id', firstId);",
+            "console.log('student_id set to:', firstId);"
+          ],
+          "type": "text/javascript"
+        }
+      }],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+        ],
+        "url": { "raw": "{{base_url}}/v1/students?per_page=1", "host": ["{{base_url}}"], "path": ["v1", "students"], "query": [{ "key": "per_page", "value": "1" }] }
+      }
+    },
+    {
+      "name": "🪪 Get ID Card — Success (200)",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "",
+            "pm.test('Response has data wrapper', () => pm.expect(json).to.have.property('data'));",
+            "pm.test('Has student_code', () => pm.expect(json.data.student_code).to.not.be.empty);",
+            "pm.test('Has full_name', () => pm.expect(json.data.full_name).to.not.be.empty);",
+            "pm.test('Has batch', () => pm.expect(json.data.batch).to.not.be.empty);",
+            "pm.test('Has qr_code', () => pm.expect(json.data.qr_code).to.not.be.empty);",
+            "pm.test('Has template', () => pm.expect(json.data.template).to.eql('default'));",
+            "",
+            "// Log values for inspection",
+            "console.log('Student Code:', json.data.student_code);",
+            "console.log('Full Name:', json.data.full_name);",
+            "console.log('Photo URL:', json.data.photo);",
+            "console.log('Batch:', json.data.batch);",
+            "console.log('QR Code URL:', json.data.qr_code);",
+            "console.log('Template:', json.data.template);"
+          ],
+          "type": "text/javascript"
+        }
+      }],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+        ],
+        "url": { "raw": "{{base_url}}/v1/students/{{student_id}}/id-card", "host": ["{{base_url}}"], "path": ["v1", "students", "{{student_id}}", "id-card"] }
+      }
+    },
+    {
+      "name": "🪪 Get ID Card — Not Found (404)",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));",
+            "const json = pm.response.json();",
+            "pm.test('Has error code 404', () => pm.expect(json.error.code).to.eql(404));",
+            "pm.test('Error message says student not found', () => pm.expect(json.error.message).to.include('not found'));"
+          ],
+          "type": "text/javascript"
+        }
+      }],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+        ],
+        "url": { "raw": "{{base_url}}/v1/students/999999/id-card", "host": ["{{base_url}}"], "path": ["v1", "students", "999999", "id-card"] }
+      }
+    },
+    {
+      "name": "🪪 Get ID Card — No Auth (401)",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));",
+            "const json = pm.response.json();",
+            "pm.test('Error message says authentication required', () => pm.expect(json.message.toLowerCase()).to.include('auth'));"
+          ],
+          "type": "text/javascript"
+        }
+      }],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/v1/students/1/id-card", "host": ["{{base_url}}"], "path": ["v1", "students", "1", "id-card"] }
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
 use App\Http\Controllers\Api\V1\CardsController;
 use App\Http\Controllers\Api\V1\Student\StudentCardController;
+use App\Http\Controllers\Api\V1\Student\IdCardController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -44,6 +45,7 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware('permission:students.view')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
+            Route::get('students/{id}/id-card', [IdCardController::class, 'show'])->whereNumber('id');
         });
         Route::get('students/{id}', [StudentController::class, 'show'])
             ->whereNumber('id')
