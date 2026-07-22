@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\V1\Student\StudentController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
+use App\Http\Controllers\Api\V1\CardsController;
+use App\Http\Controllers\Api\V1\Student\StudentCardController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -52,17 +54,32 @@ Route::prefix('v1')->group(function () {
             Route::post('students/bulk-confirm', [StudentController::class, 'bulkConfirm']);
             Route::put('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
             Route::post('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
+            Route::post('students/{id}/photo', [StudentController::class, 'uploadPhoto'])->whereNumber('id');
         });
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
         });
+        Route::prefix('cards')->group(function () {
+            Route::get('templates', [CardsController::class, 'templates']);
+            Route::get('students-by-batch', [CardsController::class, 'studentsByBatch']);
+            Route::post('batch', [CardsController::class, 'batch']);
+            Route::get('download/{batchId}', [CardsController::class, 'downloadByBatch'])->whereNumber('batchId');
+        });
+
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);
         Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
+
 
         Route::middleware('permission:batches.manage')->group(function () {
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
         });
+
+        Route::middleware('permission:cards.generate')->group(function () {
+            Route::post('student-cards/{id}/reprint', [CardsController::class, 'reprint'])->whereNumber('id');
+
+        });
+
     });
 });
