@@ -23,9 +23,6 @@ class GenerateBatchCards implements ShouldQueue
         public int $templateId,
     ) {}
 
-    /**
-     * Execute the job.
-     */
     public function handle(CardService $cardService): void
     {
         Log::info('Starting batch card generation', [
@@ -56,9 +53,6 @@ class GenerateBatchCards implements ShouldQueue
         ]);
     }
 
-    /**
-     * Handle a job failure.
-     */
     public function failed(\Throwable $exception): void
     {
         Log::error('GenerateBatchCards job failed', [

@@ -2,28 +2,25 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BulkUpdateStudentsRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'integer',
+            'selection_batch_id' => 'nullable|exists:selection_batches,id',
+            'data' => 'required|array',
+            'data.*' => 'array',
+            'data.*.field' => 'required|string',
+            'data.*.value' => 'required',
         ];
     }
 }

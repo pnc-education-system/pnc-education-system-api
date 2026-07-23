@@ -13,6 +13,7 @@ use App\Services\Student\StudentIdGenerator;
 use App\Services\Student\StudentImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
@@ -88,22 +89,18 @@ class ImportController extends Controller
                 return $this->error('The uploaded file contains no data rows. Please ensure your spreadsheet has at least one row of student data.', 422);
             }
 
-            // Validate first (IDs are empty since CSV doesn't include student_id_no column)
             $validationResult = $this->validationService->validate($data);
 
-            // Then generate IDs ONLY for valid rows — no gaps in the sequence
             $validCount = $validationResult['summary']['valid'];
             if ($validCount > 0) {
                 $batchYear = $selectionBatch?->year ?? (int)($data[0]['intake_year'] ?? date('Y'));
                 $newIds = $this->idGenerator->generateMultipleIds($validCount, $batchYear);
 
-                // Build a set of invalid row numbers for quick lookup
                 $invalidRows = [];
                 foreach ($validationResult['invalidRows'] as $invalidRow) {
                     $invalidRows[] = $invalidRow['row'];
                 }
 
-                // Assign IDs to valid rows only
                 $idIndex = 0;
                 foreach ($data as $index => &$row) {
                     if (!in_array($index + 1, $invalidRows)) {
@@ -119,7 +116,7 @@ class ImportController extends Controller
                 'file_name'          => $file->getClientOriginalName(),
                 'file_path'          => $file->getRealPath(),
                 'selection_batch_id' => $request->input('selection_batch_id'),
-                'imported_by'        => auth()->id(),
+                'imported_by'        => Auth::id(),
                 'total_rows'         => $validationResult['summary']['total'],
                 'success_count'      => 0,
                 'error_count'        => $validationResult['summary']['invalid'],
@@ -297,7 +294,7 @@ class ImportController extends Controller
             $result = $this->importService->commitById(
                 $log,
                 $request->input('rows'),
-                auth()->id(),
+                Auth::id(),
                 $request->input('selection_batch_id')
             );
 
@@ -363,7 +360,6 @@ class ImportController extends Controller
     {
         return array_map(function ($row) use ($selectionBatch) {
             if (is_array($row)) {
-                // Ensure selection_batch_id is included in each row
                 if ($selectionBatch && !isset($row['selection_batch_id'])) {
                     $row['selection_batch_id'] = $selectionBatch->id;
                 }

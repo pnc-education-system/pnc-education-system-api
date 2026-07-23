@@ -7,25 +7,18 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class BulkConfirmStudentsRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
             'student_ids' => 'required|array|min:1',
             'student_ids.*' => 'integer',
-        ];
+            'selection_batch_id' => 'nullable|exists:selection_batches,id',
+            'confirmation_status' => 'required|string|in:confirmed,rejected',];
     }
 
     public function messages(): array

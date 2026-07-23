@@ -86,7 +86,6 @@ class CardsController extends Controller
         $templateId       = (int) $request->input('template_id');
 
         try {
-            // Dispatch the queued job
             $jobId = Str::uuid()->toString();
             $job = new GenerateBatchCards($selectionBatchId, $templateId);
             dispatch($job);
@@ -176,7 +175,7 @@ class CardsController extends Controller
         ], 200);
     }
 
-    public function generate(Request $request, $studentId)
+    public function generate(Request $request, int $studentId)
     {
         try {
             $student = \App\Models\Student::find($studentId);
@@ -185,7 +184,6 @@ class CardsController extends Controller
                 return $this->error('Student not found.', 404);
             }
 
-            // BR-5 Guard: Student must have a saved photo
             if (empty($student->photo_path) || !Storage::disk('public')->exists($student->photo_path)) {
                 return response()->json([
                     'status'  => 'failed',
@@ -198,7 +196,6 @@ class CardsController extends Controller
                 ], 422);
             }
 
-            // Get default template
             $defaultTemplate = CardTemplate::where('is_default', true)->first();
             if (!$defaultTemplate) {
                 $defaultTemplate = CardTemplate::first();
@@ -216,12 +213,10 @@ class CardsController extends Controller
                 ], 422);
             }
 
-            // Validate PDF upload from frontend
             $request->validate([
-                'pdf' => 'required|file|mimes:pdf|max:10240', // Max 10MB
+                'pdf' => 'required|file|mimes:pdf|max:10240',
             ]);
 
-            // Generate or update the student card record
             $card = StudentCard::updateOrCreate(
                 ['student_id' => $studentId],
                 [
@@ -232,13 +227,11 @@ class CardsController extends Controller
                 ]
             );
 
-            // Store PDF from frontend
             $pdfFile = $request->file('pdf');
             $filename = "student-card-{$student->student_id_no}-{$card->id}.pdf";
             $path = "cards/{$filename}";
             Storage::disk('public')->putFileAs('cards', $pdfFile, $filename);
 
-            // Update card with PDF path
             $card->update(['pdf_path' => $path]);
 
             return response()->json([
@@ -270,9 +263,8 @@ class CardsController extends Controller
         }
     }
 
-    private function generatePdfForStudent($student, $card): string
+    private function generatePdfForStudent(\App\Models\Student $student, StudentCard $card): string
     {
-        // Get the template
         $template = $card->cardTemplate;
         if (!$template) {
             $template = CardTemplate::where('is_default', true)->first();
@@ -282,17 +274,14 @@ class CardsController extends Controller
             return $this->error('No card template found. Please create a template first.', 422);
         }
 
-        // Convert Student Photo to Base64 for DomPDF rendering
         $photoAbsolutePath = Storage::disk('public')->path($student->photo_path);
         $photoMimeType = mime_content_type($photoAbsolutePath) ?: 'image/jpeg';
         $photoBase64 = 'data:' . $photoMimeType . ';base64,' . base64_encode(file_get_contents($photoAbsolutePath));
 
-        // Generate QR Code with student verification URL (matches frontend format)
         $verifyUrl = $this->buildVerifyUrl($student);
         $qrRaw = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(120)->margin(1)->generate($verifyUrl);
         $qrCodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrRaw);
 
-        // Render A4 PDF using dynamic template based on layout_json
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.student-card-template', [
             'student'      => $student,
             'photoBase64'  => $photoBase64,
@@ -300,7 +289,6 @@ class CardsController extends Controller
             'template'     => $template,
         ])->setPaper('a4', 'portrait');
 
-        // Save PDF to storage
         $filename = "student-card-{$student->student_id_no}-{$card->id}.pdf";
         $path = "cards/{$filename}";
         Storage::disk('public')->put($path, $pdf->output());
@@ -308,7 +296,7 @@ class CardsController extends Controller
         return $path;
     }
 
-    public function download($studentId)
+    public function download(int $studentId)
     {
         try {
             $card = StudentCard::where('student_id', $studentId)->latest()->first();
@@ -362,7 +350,6 @@ class CardsController extends Controller
                 return $this->error('No students found.', 404);
             }
 
-            // Check if all students have photos (BR-5 Guard)
             foreach ($students as $student) {
                 if (empty($student->photo_path) || !Storage::disk('public')->exists($student->photo_path)) {
                     return response()->json([
@@ -377,15 +364,12 @@ class CardsController extends Controller
                 }
             }
 
-            // Use DomPDF to generate batch PDF with all cards on one page
-            // Prepare card data for all students
             $cardsData = [];
             foreach ($students as $student) {
                 $photoAbsolutePath = Storage::disk('public')->path($student->photo_path);
                 $photoMimeType = mime_content_type($photoAbsolutePath) ?: 'image/jpeg';
                 $photoBase64 = 'data:' . $photoMimeType . ';base64,' . base64_encode(file_get_contents($photoAbsolutePath));
 
-                // Generate QR Code with student verification URL (matches frontend format)
                 $verifyUrl = $this->buildVerifyUrl($student);
                 $qrRaw = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(120)->margin(1)->generate($verifyUrl);
                 $qrCodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrRaw);
@@ -397,13 +381,11 @@ class CardsController extends Controller
                 ];
             }
 
-            // Render A4 PDF with all cards
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.batch-student-cards', [
                 'cards' => $cardsData,
                 'layout' => $layout,
             ])->setPaper('a4', 'portrait');
 
-            // Return PDF as download
             $filename = "ID_Cards_Batch_" . date('Y-m-d_His') . ".pdf";
             return response($pdf->output())
                 ->header('Content-Type', 'application/pdf')
@@ -418,10 +400,7 @@ class CardsController extends Controller
         }
     }
 
-    /**
-     * Build a verification URL for the QR code that matches the frontend format.
-     */
-    private function buildVerifyUrl($student): string
+    private function buildVerifyUrl(\App\Models\Student $student): string
     {
         $origin = rtrim(config('app.url'), '/');
         $params = http_build_query([
@@ -436,7 +415,7 @@ class CardsController extends Controller
         return $origin . '/verify/' . urlencode($student->student_id_no) . '?' . $params;
     }
 
-    public function downloadByBatch($batchId)
+    public function downloadByBatch(int $batchId)
     {
         try {
             $batch = SelectionBatch::find($batchId);
@@ -462,7 +441,12 @@ class CardsController extends Controller
             $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', $batchName);
             $filename = "cards_{$sanitized}.pdf";
 
-            return Storage::disk($disk)->download($latestCard->pdf_path, $filename);
+            $fileContents = Storage::disk($disk)->get($latestCard->pdf_path);
+
+            return response($fileContents)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "attachment; filename=\"{$filename}\"")
+                ->header('Content-Length', strlen($fileContents));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to download batch PDF', [
                 'batch_id' => $batchId,

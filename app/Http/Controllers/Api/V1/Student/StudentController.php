@@ -17,6 +17,7 @@ use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class StudentController extends Controller
@@ -88,7 +89,7 @@ class StudentController extends Controller
         ], 201);
     }
 
-    public function show($id)
+    public function show(int $id)
     {
         $student = Student::with('selectionBatch')->find($id);
 
@@ -103,7 +104,7 @@ class StudentController extends Controller
         ], 200);
     }
 
-    public function history($id)
+    public function history(int $id)
     {
         $student = Student::find($id);
 
@@ -111,7 +112,6 @@ class StudentController extends Controller
             return $this->error('Student not found', 404);
         }
 
-        // 1. Status changes
         $statusHistories = \App\Models\EnrollmentStatusHistory::where('student_id', $id)
             ->with('changedBy')
             ->orderBy('created_at', 'desc')
@@ -127,7 +127,6 @@ class StudentController extends Controller
                 ];
             });
 
-        // 2. Profile updates (AuditLog)
         $auditLogs = \App\Models\AuditLog::where('auditable_type', Student::class)
             ->where('auditable_id', $id)
             ->where('event', 'student_updated')
@@ -159,7 +158,6 @@ class StudentController extends Controller
                 ];
             });
 
-        // 3. Evaluations
         $evaluations = \App\Models\Evaluation::where('student_id', $id)
             ->with(['reviewer', 'evaluationForm'])
             ->orderBy('submitted_at', 'desc')
@@ -176,7 +174,6 @@ class StudentController extends Controller
                 ];
             });
 
-        // 4. Incident/Journal records (StudentRecords)
         $records = \App\Models\StudentRecord::where('student_id', $id)
             ->orderBy('created_at', 'desc')
             ->get()
@@ -191,7 +188,6 @@ class StudentController extends Controller
                 ];
             });
 
-        // Merge all and sort by date descending
         $history = $statusHistories
             ->concat($auditLogs)
             ->concat($evaluations)
@@ -206,7 +202,7 @@ class StudentController extends Controller
         ], 200);
     }
 
-    public function updateStatus(UpdateStudentStatusRequest $request, $id)
+    public function updateStatus(UpdateStudentStatusRequest $request, int $id)
     {
         $student = Student::find($id);
 
@@ -252,7 +248,7 @@ class StudentController extends Controller
         }
     }
 
-    public function update(StudentUpdateRequest $request, $id)
+    public function update(StudentUpdateRequest $request, int $id)
     {
         $student = Student::find($id);
 
@@ -332,7 +328,6 @@ class StudentController extends Controller
                 $students = Student::whereIn('id', $studentIds)->get();
 
                 foreach ($students as $student) {
-                    // Update status directly (force transition)
                     $student->transitionStatus($newStatus, $note, Auth::id(), true);
                     $updatedStudents[] = $student->student_id_no;
                 }
@@ -349,7 +344,7 @@ class StudentController extends Controller
                 ],
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Bulk update error', [
+            Log::error('Bulk update error', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -357,7 +352,7 @@ class StudentController extends Controller
         }
     }
 
-    public function uploadPhoto(StoreStudentPhotoRequest $request, $id)
+    public function uploadPhoto(StoreStudentPhotoRequest $request, int $id)
     {
         $student = Student::find($id);
 
@@ -411,7 +406,7 @@ class StudentController extends Controller
                 ],
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Bulk confirm error', [
+            Log::error('Bulk confirm error', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

@@ -126,19 +126,16 @@ class StudentImportService
 
     private function getOrGenerateStudentId(array $row): string
     {
-        // If student_id_no is provided and not empty, use it
         if (!empty($row['student_id_no'])) {
             return $row['student_id_no'];
         }
         
-        // Otherwise, generate a new ID using the intake year
         $intakeYear = $row['intake_year'] ?? date('Y');
         return $this->idGenerator->generateNextId($intakeYear);
     }
 
     private function generateMissingIds(array $rows, ?int $batchYear = null): array
     {
-        // Use the batch's year so IDs are consistent within a batch
         $year = $batchYear ?? $rows[0]['intake_year'] ?? date('Y');
         
         $ids = $this->idGenerator->generateMultipleIds(count($rows), $year);
@@ -195,15 +192,12 @@ class StudentImportService
 
     public function commitById(ImportLog $importLog, array $rows, int $userId, ?int $selectionBatchId = null): array
     {
-        // Preserve the original total_rows and validation error_count from upload
-        // so the import history shows the full picture (total from file, not just valid rows).
         $validationErrorCount = $importLog->error_count;
 
         $importLog->update([
             'status' => 'Processing',
         ]);
 
-        // Auto-generate IDs using the batch's year
         $batchYear = null;
         if ($selectionBatchId) {
             $batch = \App\Models\SelectionBatch::find($selectionBatchId);
@@ -244,7 +238,6 @@ class StudentImportService
             } catch (\Exception $e) {
                 $totalFailed += count($chunk);
 
-                // Record each failed row as an ImportError for visibility
                 $errorRecords = [];
                 $startRow = ($chunkIndex * $chunkSize) + 1;
                 foreach ($chunk as $offset => $row) {
@@ -292,7 +285,6 @@ class StudentImportService
             'status'        => 'Processing',
         ]);
 
-        // Auto-generate IDs for rows that don't have them
         $rows = $this->generateMissingIds($rows);
 
         $chunkSize = 100;
@@ -328,8 +320,6 @@ class StudentImportService
                 });
             }catch(\Exception $e){
                 $totalFailed += count($chunk);
-
-                // Record each failed row as an ImportError for visibility
                 $errorRecords = [];
                 $startRow = ($chunkIndex * $chunkSize) + 1;
                 foreach ($chunk as $offset => $row) {
