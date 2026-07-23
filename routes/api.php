@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Student\StudentController;
 use App\Http\Controllers\Api\V1\Student\StudentCardController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
+use App\Http\Controllers\Api\V1\Record\RecordAttachmentController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
 use App\Http\Controllers\Api\V1\CardsController;
 use App\Http\Controllers\Api\V1\Student\StudentRecordController;
@@ -14,6 +15,8 @@ use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+        // Refresh must be public — the JWT is already expired when we need to refresh
+        Route::post('refresh', [AuthController::class, 'refresh']);
         Route::post('password/reset', [AuthController::class, 'requestReset'])->middleware('throttle:3,1');
         Route::post('password/reset/confirm', [AuthController::class, 'confirmReset'])->middleware('throttle:3,1');
     });
@@ -25,7 +28,6 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('jwt.auth')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
-        Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::get('dashboard/enrollment', [DashboardController::class, 'enrollmentStats']);
 
@@ -124,5 +126,21 @@ Route::prefix('v1')->group(function () {
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
         });
 
+        // Listing attachments is a read operation - accessible with records.view
+        Route::get('students/{student}/attachments', [RecordAttachmentController::class, 'indexByStudent'])
+            ->whereNumber('student')
+            ->middleware('permission:records.view,records.manage');
+
+        Route::middleware('permission:records.manage')->group(function () {
+            Route::post('records/{record}/attachments', [RecordAttachmentController::class, 'store'])
+                ->whereNumber('record');
+
+            // Student-scoped attachment endpoints (for frontend compatibility)
+            Route::post('students/{student}/attachments', [RecordAttachmentController::class, 'storeForStudent'])
+                ->whereNumber('student');
+            Route::delete('students/{student}/attachments/{attachment}', [RecordAttachmentController::class, 'destroy'])
+                ->whereNumber('student')
+                ->whereNumber('attachment');
+        });
     });
 });
