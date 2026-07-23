@@ -161,11 +161,11 @@ class ImportValidationService
             'student_id_no' => ['nullable', 'string', 'max:50', new StudentIdFormat()],
             'full_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:Male,Female,Other'],
-            'dob' => ['required', 'date', 'before:today'],
+            'dob' => ['nullable', 'date', 'before:today'],
             'phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
-            'province' => ['required', 'string', 'max:100'],
-            'high_school' => ['required', 'string', 'max:255'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'high_school' => ['nullable', 'string', 'max:255'],
             'selection_batch_id' => ['required', 'integer'],
             'enrollment_status' => ['sometimes', 'in:Pending,Enrolled,Rejected,Graduated,Dropped'],
             'intake_year' => ['required', 'integer', 'digits:4'],
@@ -210,7 +210,7 @@ class ImportValidationService
     {
         $batchId = $row['selection_batch_id'] ?? null;
 
-        if ($batchId && !in_array($batchId, $this->existingBatchIds, true)) {
+        if ($batchId && !in_array((int)$batchId, array_map('intval', $this->existingBatchIds), true)) {
             $errors['selection_batch_id'][] = 'Selected batch does not exist.';
         }
     }

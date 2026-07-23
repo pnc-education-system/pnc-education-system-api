@@ -21,6 +21,7 @@ Route::prefix('v1')->group(function () {
         Route::post('password/reset/confirm', [AuthController::class, 'confirmReset'])->middleware('throttle:3,1');
     });
 
+    // Public verification routes (no authentication required)
     Route::get('/student-cards/qr/{qr_token}', [StudentCardController::class, 'resolveQr']);
     Route::get('/student-cards/student/{student_id_no}', [StudentCardController::class, 'resolveByStudentId']);
     Route::get('/cards/verify/{qrToken}', [StudentCardController::class, 'verify']);
@@ -114,6 +115,7 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware('permission:cards.generate')->group(function () {
             Route::post('cards/reprint', [CardsController::class, 'batchReprint']);
+            Route::post('student-cards/{id}/reprint', [CardsController::class, 'reprint'])->whereNumber('id');
         });
 
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);

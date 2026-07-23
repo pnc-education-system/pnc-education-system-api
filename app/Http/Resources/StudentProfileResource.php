@@ -10,7 +10,7 @@ class StudentProfileResource extends JsonResource
     public function toArray(Request $request): array
     {
         $batch = $this->whenLoaded('selectionBatch');
-        
+
         return [
             'id' => $this->id,
             'student_id_no' => $this->student_id_no,

@@ -15,7 +15,7 @@ return new class extends Migration
         DB::table('students')->whereNull('high_school')->update(['high_school' => '']);
 
         Schema::table('students', function (Blueprint $table) {
-            $table->string('high_school')->nullable(false)->change();
+            $table->string('high_school')->default('')->nullable(false)->change();
         });
     }
 

@@ -9,8 +9,8 @@ class StudentIdFormat implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        // Accept old format (ST followed by 4-6 digits) and new format (PNC{year}-XXX)
-        if (!preg_match('/^(ST\d{4,6}|PNC\d{4}-\d{3})$/', $value)) {
+        // Accept old format (ST followed by 3-6 digits) and new format (PNC{year}-XXX)
+        if (!preg_match('/^(ST\d{3,6}|PNC\d{4}-\d{3})$/', $value)) {
             $fail('Student ID must follow the format by PNC{year}-XXX (e.g., PNC2026-001).');
         }
     }

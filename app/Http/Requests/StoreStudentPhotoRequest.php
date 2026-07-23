@@ -17,7 +17,7 @@ class StoreStudentPhotoRequest extends FormRequest
                 'required',
                 'image',
                 'mimes:jpg,jpeg,png,webp',
-                'max:4096'],
+                'max:10240'],
         ];
     }
     public function messages(): array
@@ -26,7 +26,7 @@ class StoreStudentPhotoRequest extends FormRequest
             'photo.required'=>'No photo was provided.',
             'photo.image' => 'The file must be an image.',
             'photo.mimes'=>'Photo must be a JPG, JPEG, PNG, or WEBP file.',
-            'photo.max'=>'Photo must not be larger than 4MB.'
+            'photo.max'=>'Photo must not be larger than 10MB.'
         ];
     }
 }

@@ -296,7 +296,7 @@ class ImportController extends Controller
 
             $result = $this->importService->commitById(
                 $log,
-                $request->input('rows'),
+                $rows,
                 auth()->id(),
                 $request->input('selection_batch_id')
             );
@@ -363,9 +363,12 @@ class ImportController extends Controller
     {
         return array_map(function ($row) use ($selectionBatch) {
             if (is_array($row)) {
-                // Ensure selection_batch_id is included in each row
-                if ($selectionBatch && !isset($row['selection_batch_id'])) {
+                if ($selectionBatch) {
                     $row['selection_batch_id'] = $selectionBatch->id;
+                    $row['intake_year'] = $selectionBatch->year;
+                }
+                if (empty($row['enrollment_status'])) {
+                    $row['enrollment_status'] = 'Pending';
                 }
                 return $row;
             }

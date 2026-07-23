@@ -32,7 +32,7 @@ class StudentUpdateRequest extends FormRequest
             'enrollment_status' => ['required', Rule::in(['Pending', 'Enrolled', 'Rejected', 'Graduated', 'Dropped'])],
             'intake_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'enrolled_at' => ['nullable', 'date'],
-            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ];
     }
 
@@ -51,7 +51,7 @@ class StudentUpdateRequest extends FormRequest
             'email.email' => 'Email must be a valid email address',
             'photo.image' => 'Student photo must be an image',
             'photo.mimes' => 'Student photo must be a JPG, JPEG, PNG, or WEBP file',
-            'photo.max' => 'Student photo must not be larger than 4MB',
+            'photo.max' => 'Student photo must not be larger than 10MB',
         ];
     }
 }

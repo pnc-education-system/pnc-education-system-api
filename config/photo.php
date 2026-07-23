@@ -31,5 +31,5 @@ return [
     | Default: 5120 KB (5 MB)
     |
     */
-    'max_file_size_kb' => env('PHOTO_MAX_FILE_SIZE_KB', 5120),
+    'max_file_size_kb' => env('PHOTO_MAX_FILE_SIZE_KB', 10240),
 ];
