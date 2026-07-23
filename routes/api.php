@@ -65,12 +65,20 @@ Route::prefix('v1')->group(function () {
         });
         Route::prefix('cards')->group(function () {
             Route::get('templates', [CardsController::class, 'templates']);
+            Route::get('templates/{id}', [CardsController::class, 'showTemplate'])->whereNumber('id');
+            Route::get('stats', [CardsController::class, 'stats']);
             Route::get('students-by-batch', [CardsController::class, 'studentsByBatch']);
             Route::post('batch', [CardsController::class, 'batch']);
             Route::post('generate/{studentId}', [CardsController::class, 'generate'])->whereNumber('studentId');
             Route::get('download/{studentId}', [CardsController::class, 'download'])->whereNumber('studentId');
             Route::get('download/batch/{batchId}', [CardsController::class, 'downloadByBatch'])->whereNumber('batchId');
             Route::post('batch-download', [CardsController::class, 'batchDownload']);
+        });
+
+        Route::middleware('permission:cards.generate')->group(function () {
+            Route::post('cards/templates', [CardsController::class, 'storeTemplate']);
+            Route::put('cards/templates/{id}', [CardsController::class, 'updateTemplate'])->whereNumber('id');
+            Route::delete('cards/templates/{id}', [CardsController::class, 'destroyTemplate'])->whereNumber('id');
         });
 
         Route::middleware('permission:cards.generate')->group(function () {

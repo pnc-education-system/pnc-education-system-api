@@ -162,7 +162,7 @@ class ImportValidationService
             'full_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:Male,Female,Other'],
             'dob' => ['required', 'date', 'before:today'],
-            'phone' => ['nullable', 'string', 'regex:/^[0-9]{7,15}$/'],
+            'phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
             'province' => ['required', 'string', 'max:100'],
             'high_school' => ['required', 'string', 'max:255'],
