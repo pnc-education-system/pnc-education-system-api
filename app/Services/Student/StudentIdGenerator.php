@@ -9,9 +9,6 @@ class StudentIdGenerator
 {
     private string $prefix = 'PNC';
 
-    /**
-     * Generate the next available student ID in PNC{year}-XXX format
-     */
     public function generateNextId(int $intakeYear): string
     {
         $maxId = $this->getMaxExistingId($intakeYear);
@@ -20,9 +17,6 @@ class StudentIdGenerator
         return sprintf('%s%d-%03d', $this->prefix, $intakeYear, $nextNumber);
     }
 
-    /**
-     * Generate multiple sequential student IDs for a specific year
-     */
     public function generateMultipleIds(int $count, int $intakeYear): array
     {
         $ids = [];
@@ -36,14 +30,10 @@ class StudentIdGenerator
         return $ids;
     }
 
-    /**
-     * Get the maximum existing ID number from the database for a specific year
-     */
     private function getMaxExistingId(int $intakeYear): int
     {
         $pattern = $this->prefix . $intakeYear . '-%';
         
-        // SUBSTRING starts after the prefix, year, and dash (e.g., 'PNC2025-' → start at pos 9 → '001')
         $offset = strlen($this->prefix) + strlen((string) $intakeYear) + 2;
         
         $maxId = Student::where('student_id_no', 'like', $pattern)
@@ -53,9 +43,6 @@ class StudentIdGenerator
         return (int) ($maxId ?? 0);
     }
 
-    /**
-     * Check if a given ID already exists
-     */
     public function idExists(string $studentId): bool
     {
         return Student::where('student_id_no', $studentId)->exists();

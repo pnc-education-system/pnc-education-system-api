@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Student extends Model
 {
+    use HasFactory;
+
     const STATUS_PENDING   = 'Pending';
     const STATUS_ENROLLED  = 'Enrolled';
     const STATUS_REJECTED  = 'Rejected';
