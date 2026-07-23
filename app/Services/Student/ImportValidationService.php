@@ -11,23 +11,31 @@ class ImportValidationService
 {
     private array $existingStudentIds = [];
     private array $existingBatchIds = [];
-    private array $duplicateStudentIds = [];
 
     public function validate(array $rows): array
     {
         $this->loadExistingData();
-        $this->detectFileDuplicates($rows);
 
-        return $this->processRows($rows);
+        $dedupResult = $this->deduplicateRows($rows);
+        $validationResult = $this->validateRows($dedupResult['uniqueRows']);
+
+        $allInvalid = array_merge($dedupResult['removedDuplicates'], $validationResult['invalidRows']);
+
+        return [
+            'validRows'   => $validationResult['validRows'],
+            'invalidRows' => $allInvalid,
+            'summary'     => $this->buildSummary(count($rows), count($validationResult['validRows']), count($allInvalid)),
+        ];
     }
 
-    private function processRows(array $rows): array
+    private function validateRows(array $rowsWithMeta): array
     {
         $validRows = [];
         $invalidRows = [];
 
-        foreach ($rows as $index => $row) {
-            $rowNumber = $index + 1;
+        foreach ($rowsWithMeta as $entry) {
+            $row = $entry['row'];
+            $rowNumber = $entry['rowNumber'];
             $validation = $this->validateRow($row, $rowNumber);
 
             if ($validation['isValid']) {
@@ -37,11 +45,60 @@ class ImportValidationService
             }
         }
 
+        return compact('validRows', 'invalidRows');
+    }
+
+    private function deduplicateRows(array $rows): array
+    {
+        $best = [];
+        $removed = [];
+
+        foreach ($rows as $index => $row) {
+            $studentId = $row['student_id_no'] ?? null;
+            $rowNumber = $index + 1;
+
+            if (!$studentId) {
+                $best[] = ['row' => $row, 'rowNumber' => $rowNumber, 'score' => $this->rowCompleteness($row)];
+                continue;
+            }
+
+            if (!isset($best[$studentId])) {
+                $best[$studentId] = ['row' => $row, 'rowNumber' => $rowNumber, 'score' => $this->rowCompleteness($row)];
+                continue;
+            }
+
+            $existing = &$best[$studentId];
+            $currentScore = $this->rowCompleteness($row);
+
+            if ($currentScore > $existing['score']) {
+                $removed[] = $this->buildInvalidRow(
+                    $existing['rowNumber'], $existing['row'],
+                    ['student_id_no' => ['Duplicate removed. A more complete entry for this Student ID was found later in the file and kept instead.']]
+                );
+                $existing = ['row' => $row, 'rowNumber' => $rowNumber, 'score' => $currentScore];
+            } else {
+                $removed[] = $this->buildInvalidRow(
+                    $rowNumber, $row,
+                    ['student_id_no' => ['Duplicate removed. A more complete entry for this Student ID already exists earlier in the file.']]
+                );
+            }
+        }
+
         return [
-            'validRows' => $validRows,
-            'invalidRows' => $invalidRows,
-            'summary' => $this->buildSummary(count($rows), count($validRows), count($invalidRows)),
+            'uniqueRows' => array_values($best),
+            'removedDuplicates' => $removed,
         ];
+    }
+
+    private function rowCompleteness(array $row): int
+    {
+        $count = 0;
+        foreach ($row as $value) {
+            if ($value !== null && $value !== '' && $value !== []) {
+                $count++;
+            }
+        }
+        return $count;
     }
 
     private function buildInvalidRow(int $rowNumber, array $row, array $errors): array
@@ -68,17 +125,6 @@ class ImportValidationService
         $this->existingBatchIds = SelectionBatch::pluck('id')->toArray();
     }
 
-    private function detectFileDuplicates(array $rows): void
-    {
-        $studentIdCounts = array_count_values(
-            array_filter(array_column($rows, 'student_id_no'))
-        );
-
-        $this->duplicateStudentIds = array_keys(
-            array_filter($studentIdCounts, fn($count) => $count > 1)
-        );
-    }
-
     private function validateRow(array $row, int $rowNumber): array
     {
         $errors = $this->collectErrors($row);
@@ -93,21 +139,11 @@ class ImportValidationService
     {
         $errors = [];
 
-        $this->checkFileDuplicate($row, $errors);
         $this->applyFieldValidation($row, $errors);
         $this->validateStudentIdUniqueness($row, $errors);
         $this->validateBatchExistence($row, $errors);
 
         return $errors;
-    }
-
-    private function checkFileDuplicate(array $row, array &$errors): void
-    {
-        $studentId = $row['student_id_no'] ?? null;
-
-        if ($studentId && in_array($studentId, $this->duplicateStudentIds, true)) {
-            $errors['student_id_no'][] = 'Duplicate Student ID found in uploaded file.';
-        }
     }
 
     private function applyFieldValidation(array $row, array &$errors): void
@@ -124,12 +160,12 @@ class ImportValidationService
         return [
             'student_id_no' => ['nullable', 'string', 'max:50', new StudentIdFormat()],
             'full_name' => ['required', 'string', 'max:255'],
-            'gender' => ['required', 'in:Male,Female'],
+            'gender' => ['required', 'in:Male,Female,Other'],
             'dob' => ['required', 'date', 'before:today'],
-            'phone' => ['nullable', 'string', 'regex:/^[0-9+\-\s()]{7,20}$/'],
+            'phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
-            'province' => ['nullable', 'string', 'max:100'],
-            'high_school' => ['nullable', 'string', 'max:255'],
+            'province' => ['required', 'string', 'max:100'],
+            'high_school' => ['required', 'string', 'max:255'],
             'selection_batch_id' => ['required', 'integer'],
             'enrollment_status' => ['sometimes', 'in:Pending,Enrolled,Rejected,Graduated,Dropped'],
             'intake_year' => ['required', 'integer', 'digits:4'],
@@ -143,13 +179,15 @@ class ImportValidationService
             'full_name.required' => 'Full name is required.',
             'full_name.max' => 'Full name must not exceed 255 characters.',
             'gender.required' => 'Gender is required.',
-            'gender.in' => 'Gender must be either Male or Female.',
+            'gender.in' => 'Gender must be Male, Female, or Other.',
             'dob.required' => 'Date of birth is required.',
             'dob.date' => 'Date of birth must be a valid date.',
             'dob.before' => 'Date of birth cannot be in the future.',
             'phone.regex' => 'Phone number format is invalid.',
+            'high_school.required' => 'High school is required.',
             'email.email' => 'Email must be a valid email address.',
             'email.max' => 'Email must not exceed 255 characters.',
+            'province.required' => 'Province is required.',
             'selection_batch_id.required' => 'Selection batch is required.',
             'selection_batch_id.integer' => 'Selection batch ID must be an integer.',
             'enrollment_status.in' => 'Enrollment status must be one of: Pending, Enrolled, Rejected, Graduated, Dropped.',
