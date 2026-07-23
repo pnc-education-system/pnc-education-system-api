@@ -309,7 +309,7 @@ class CardsController extends Controller
         ], 201);
     }
 
-    public function showTemplate($id): \Illuminate\Http\JsonResponse
+    public function showTemplate(int $id): \Illuminate\Http\JsonResponse
     {
         $template = CardTemplate::withCount('studentCards')->find($id);
 
@@ -324,7 +324,7 @@ class CardsController extends Controller
         ], 200);
     }
 
-    public function updateTemplate(Request $request, $id): \Illuminate\Http\JsonResponse
+    public function updateTemplate(Request $request, int $id): \Illuminate\Http\JsonResponse
     {
         $template = CardTemplate::find($id);
 
@@ -366,7 +366,7 @@ class CardsController extends Controller
         ], 200);
     }
 
-    public function destroyTemplate($id): \Illuminate\Http\JsonResponse
+    public function destroyTemplate(int $id): \Illuminate\Http\JsonResponse
     {
         $template = CardTemplate::find($id);
 
@@ -417,7 +417,7 @@ class CardsController extends Controller
         ], 200);
     }
 
-    private function generatePdfForStudent($student, $card): string
+    private function generatePdfForStudent(\App\Models\Student $student, StudentCard $card): string
     {
         $template = $card->cardTemplate;
         if (!$template) {
