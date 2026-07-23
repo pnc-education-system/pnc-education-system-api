@@ -84,7 +84,7 @@
                 <tr>
                     <td width="40"><div class="premium-logo-box">PNC</div></td>
                     <td style="padding-left: 12px;">
-                        <p class="header-title" style="color: rgba(245,198,90,0.9);">Passerelles Numériques</p>
+                        <p class="header-title" style="color: rgba(245,198,90,0.9);">Passerellesnumeriques Cambodia</p>
                         <p class="header-sub" style="color: rgba(245,158,11,0.4);">Cambodia</p>
                     </td>
                 </tr>
@@ -122,7 +122,7 @@
                 </table>
             </div>
             @endif
-            <p class="footer-text">Passerelles Numériques @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
+            <p class="footer-text">Passerellesnumeriques Cambodia @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
         </div>
         <div class="premium-gold-bottom"></div>
     </div>
@@ -135,7 +135,7 @@
                 <tr>
                     <td width="40"><div class="modern-logo-box">PNC</div></td>
                     <td style="padding-left: 12px;">
-                        <p class="header-title">Passerelles Numériques</p>
+                        <p class="header-title">Passerellesnumeriques Cambodia</p>
                         <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
                     </td>
                 </tr>
@@ -168,7 +168,7 @@
                 </table>
             </div>
             @endif
-            <p class="footer-text">Passerelles Numériques @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
+            <p class="footer-text">Passerellesnumeriques Cambodia @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
         </div>
     </div>
 
@@ -180,7 +180,7 @@
                 <tr>
                     <td width="40"><div class="classic-logo-box">PNC</div></td>
                     <td style="padding-left: 12px;">
-                        <p class="header-title">Passerelles Numériques</p>
+                        <p class="header-title">Passerellesnumeriques Cambodia</p>
                         <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
                     </td>
                 </tr>
@@ -213,7 +213,7 @@
                 </table>
             </div>
             @endif
-            <p class="footer-text">Passerelles Numériques @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
+            <p class="footer-text">Passerellesnumeriques Cambodia @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
         </div>
     </div>
 @endif

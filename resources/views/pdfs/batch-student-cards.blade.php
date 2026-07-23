@@ -123,7 +123,7 @@
                                         <div class="premium-logo">PNC</div>
                                     </td>
                                     <td style="padding-left: 6px;">
-                                        <p class="header-title" style="color: rgba(245,198,90,0.9);">Passerelles Numériques</p>
+                                        <p class="header-title" style="color: rgba(245,198,90,0.9);">Passerellesnumeriques Cambodia</p>
                                         <p class="header-sub" style="color: rgba(245,158,11,0.4);">Cambodia</p>
                                     </td>
                                 </tr>
@@ -186,7 +186,7 @@
                                         <div class="modern-logo">PNC</div>
                                     </td>
                                     <td style="padding-left: 6px;">
-                                        <p class="header-title">Passerelles Numériques</p>
+                                        <p class="header-title">Passerellesnumeriques Cambodia</p>
                                         <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
                                     </td>
                                 </tr>
@@ -247,7 +247,7 @@
                                         <div class="classic-logo">PNC</div>
                                     </td>
                                     <td style="padding-left: 6px;">
-                                        <p class="header-title">Passerelles Numériques</p>
+                                        <p class="header-title">Passerellesnumeriques Cambodia</p>
                                         <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
                                     </td>
                                 </tr>

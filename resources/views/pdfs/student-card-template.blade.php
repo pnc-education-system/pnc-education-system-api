@@ -108,7 +108,7 @@
             <tr>
                 <td width="40"><div class="premium-logo-box">PNC</div></td>
                 <td style="padding-left: 12px;">
-                    <p class="header-title" style="color: rgba(245,198,90,0.9);">Passerelles Numériques</p>
+                    <p class="header-title" style="color: rgba(245,198,90,0.9);">Passerellesnumeriques Cambodia</p>
                     <p class="header-sub" style="color: rgba(245,158,11,0.4);">Cambodia</p>
                 </td>
             </tr>
@@ -137,7 +137,7 @@
             </table>
         </div>
         @endif
-        <p class="footer-text">Passerelles Numériques @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
+        <p class="footer-text">Passerellesnumeriques Cambodia @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
     </div>
     <div class="premium-gold-bottom"></div>
 </div>
@@ -148,7 +148,7 @@
             <tr>
                 <td width="40"><div class="modern-logo-box">PNC</div></td>
                 <td style="padding-left: 12px;">
-                    <p class="header-title">Passerelles Numériques</p>
+                    <p class="header-title">Passerellesnumeriques Cambodia</p>
                     <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
                 </td>
             </tr>
@@ -174,7 +174,7 @@
             </table>
         </div>
         @endif
-        <p class="footer-text">Passerelles Numériques @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
+        <p class="footer-text">Passerellesnumeriques Cambodia @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
     </div>
 </div>
 @else
@@ -184,7 +184,7 @@
             <tr>
                 <td width="40"><div class="classic-logo-box">PNC</div></td>
                 <td style="padding-left: 12px;">
-                    <p class="header-title">Passerelles Numériques</p>
+                    <p class="header-title">Passerellesnumeriques Cambodia</p>
                     <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
                 </td>
             </tr>
@@ -209,7 +209,7 @@
             </table>
         </div>
         @endif
-        <p class="footer-text">Passerelles Numériques @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
+        <p class="footer-text">Passerellesnumeriques Cambodia @if($student->intake_year)· {{ $student->intake_year }}@endif</p>
     </div>
 </div>
 @endif
@@ -224,14 +224,14 @@
                 <tr>
                     <td width="36"><div class="premium-logo-box" style="width: 36px; height: 36px; font-size: 11px;">PNC</div></td>
                     <td style="padding-left: 10px;">
-                        <p class="header-title" style="color: rgba(245,198,90,0.9); font-size: 12px;">Passerelles Numériques Cambodge</p>
+                        <p class="header-title" style="color: rgba(245,198,90,0.9); font-size: 12px;">Passerellesnumeriques Cambodia</p>
                         <p class="header-sub" style="color: rgba(245,158,11,0.4); font-size: 8px;">Education for a Better Future</p>
                     </td>
                 </tr>
             </table>
         </div>
         <div style="padding: 14px 20px;">
-            <p class="back-org-text" style="color: #94a3b8;"><b>Passerelles Numériques Cambodia.</b> Is a french non-profit organization, created in 2005, which intends to enable the most under privileged young people access to higher education and skilled employment in the promising sector of Information Technology.</p>
+            <p class="back-org-text" style="color: #94a3b8;"><b>Passerellesnumeriques Cambodia.</b> Is a french non-profit organization, created in 2005, which intends to enable the most under privileged young people access to higher education and skilled employment in the promising sector of Information Technology.</p>
             <div class="back-premium-divider"></div>
             <p class="back-premium-label" style="font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Education Manager</p>
             <p class="back-premium-value" style="font-size: 14px; font-weight: 700; margin: 0 0 8px;">{{ $managerName }}</p>
@@ -258,14 +258,14 @@
                 <tr>
                     <td width="36"><div class="modern-logo-box" style="width: 36px; height: 36px; font-size: 11px;">PNC</div></td>
                     <td style="padding-left: 10px;">
-                        <p class="header-title" style="font-size: 12px;">Passerelles Numériques Cambodge</p>
+                        <p class="header-title" style="font-size: 12px;">Passerellesnumeriques Cambodia</p>
                         <p class="header-sub" style="font-size: 8px; color: rgba(255,255,255,0.5);">Education for a Better Future</p>
                     </td>
                 </tr>
             </table>
         </div>
         <div class="back-body">
-            <p class="back-org-text"><b>Passerelles Numériques Cambodia.</b> Is a french non-profit organization, created in 2005, which intends to enable the most under privileged young people access to higher education and skilled employment in the promising sector of Information Technology.</p>
+            <p class="back-org-text"><b>Passerellesnumeriques Cambodia.</b> Is a french non-profit organization, created in 2005, which intends to enable the most under privileged young people access to higher education and skilled employment in the promising sector of Information Technology.</p>
             <hr class="back-divider" />
             <p class="back-section-label">Education Manager</p>
             <p class="back-section-value">{{ $managerName }}</p>
@@ -292,14 +292,14 @@
                 <tr>
                     <td width="36"><div class="classic-logo-box" style="width: 36px; height: 36px; font-size: 11px;">PNC</div></td>
                     <td style="padding-left: 10px;">
-                        <p class="header-title" style="font-size: 12px;">Passerelles Numériques Cambodge</p>
+                        <p class="header-title" style="font-size: 12px;">Passerellesnumeriques Cambodia</p>
                         <p class="header-sub" style="font-size: 8px; color: rgba(255,255,255,0.5);">Education for a Better Future</p>
                     </td>
                 </tr>
             </table>
         </div>
         <div class="back-body">
-            <p class="back-org-text"><b>Passerelles Numériques Cambodia.</b> Is a french non-profit organization, created in 2005, which intends to enable the most under privileged young people access to higher education and skilled employment in the promising sector of Information Technology.</p>
+            <p class="back-org-text"><b>Passerellesnumeriques Cambodia.</b> Is a french non-profit organization, created in 2005, which intends to enable the most under privileged young people access to higher education and skilled employment in the promising sector of Information Technology.</p>
             <hr class="back-divider" />
             <p class="back-section-label">Education Manager</p>
             <p class="back-section-value">{{ $managerName }}</p>
