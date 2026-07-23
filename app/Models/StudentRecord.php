@@ -8,6 +8,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StudentRecord extends Model
 {
+    public const CATEGORY_GENERAL = 'general';
+    public const CATEGORY_NOTE = 'note';
+    public const CATEGORY_INCIDENT = 'incident';
+    public const CATEGORY_ACHIEVEMENT = 'achievement';
+
+    public const CATEGORIES = [
+        self::CATEGORY_GENERAL,
+        self::CATEGORY_NOTE,
+        self::CATEGORY_INCIDENT,
+        self::CATEGORY_ACHIEVEMENT,
+    ];
+
     protected $fillable = [
         'student_id',
         'category',

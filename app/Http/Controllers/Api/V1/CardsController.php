@@ -198,13 +198,21 @@ class CardsController extends Controller
                 ], 422);
             }
 
-            // Get default template
-            $defaultTemplate = CardTemplate::where('is_default', true)->first();
-            if (!$defaultTemplate) {
-                $defaultTemplate = CardTemplate::first();
+            // Determine template: use provided template_id or fall back to default
+            $templateId = $request->input('template_id');
+            if ($templateId) {
+                $template = CardTemplate::find($templateId);
+                if (!$template) {
+                    return $this->error('Selected card template not found.', 422);
+                }
+            } else {
+                $template = CardTemplate::where('is_default', true)->first();
+                if (!$template) {
+                    $template = CardTemplate::first();
+                }
             }
 
-            if (!$defaultTemplate) {
+            if (!$template) {
                 return response()->json([
                     'status'  => 'failed',
                     'message' => 'No card template found. Please create a template first.',
@@ -225,10 +233,9 @@ class CardsController extends Controller
             $card = StudentCard::updateOrCreate(
                 ['student_id' => $studentId],
                 [
-                    'template_id' => $defaultTemplate->id,
+                    'template_id' => $template->id,
                     'card_number' => 'CARD-' . str_pad($studentId, 6, '0', STR_PAD_LEFT),
                     'qr_token' => \Illuminate\Support\Str::random(32),
-                    'printed_count' => 0,
                 ]
             );
 
@@ -238,8 +245,12 @@ class CardsController extends Controller
             $path = "cards/{$filename}";
             Storage::disk('public')->putFileAs('cards', $pdfFile, $filename);
 
-            // Update card with PDF path
+            // Update card with PDF path and atomically increment printed count
+            $card->increment('printed_count');
             $card->update(['pdf_path' => $path]);
+
+            // Count total generated cards
+            $totalGenerated = StudentCard::whereNotNull('pdf_path')->count();
 
             return response()->json([
                 'status'  => 'success',
@@ -248,6 +259,7 @@ class CardsController extends Controller
                     'student_id' => $studentId,
                     'card_url'   => url("storage/{$path}"),
                     'qr_data'    => $card->qr_token,
+                    'template_id'=> $template->id,
                     'status'     => 'success',
                 ],
             ], 200);
@@ -268,6 +280,146 @@ class CardsController extends Controller
                 ],
             ], 500);
         }
+    }
+
+    public function storeTemplate(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name'        => 'required|string|max:255',
+            'layout_key'  => 'nullable|string|max:50|unique:card_templates,layout_key',
+            'layout_json' => 'required|json',
+            'is_default'  => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation failed', 422, $validator->errors());
+        }
+
+        // If setting as default, unset existing default first
+        if ($request->boolean('is_default')) {
+            CardTemplate::where('is_default', true)->update(['is_default' => false]);
+        }
+
+        $template = CardTemplate::create([
+            'name'        => $request->name,
+            'layout_key'  => $request->layout_key,
+            'layout_json' => json_decode($request->layout_json, true),
+            'is_default'  => $request->boolean('is_default'),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Card template created successfully',
+            'data'    => $template,
+        ], 201);
+    }
+
+    public function showTemplate($id): \Illuminate\Http\JsonResponse
+    {
+        $template = CardTemplate::withCount('studentCards')->find($id);
+
+        if (!$template) {
+            return $this->error('Card template not found', 404);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Card template retrieved successfully',
+            'data'    => $template,
+        ], 200);
+    }
+
+    public function updateTemplate(Request $request, $id): \Illuminate\Http\JsonResponse
+    {
+        $template = CardTemplate::find($id);
+
+        if (!$template) {
+            return $this->error('Card template not found', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name'        => 'sometimes|required|string|max:255',
+            'layout_key'  => 'nullable|string|max:50|unique:card_templates,layout_key,' . $id,
+            'layout_json' => 'sometimes|required|json',
+            'is_default'  => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Validation failed', 422, $validator->errors());
+        }
+
+        // If setting as default, unset existing default first
+        $wasDefault = $template->is_default;
+        $setAsDefault = $request->has('is_default') ? $request->boolean('is_default') : $template->is_default;
+
+        if ($setAsDefault && !$wasDefault) {
+            CardTemplate::where('is_default', true)->update(['is_default' => false]);
+        }
+
+        $data = [];
+        if ($request->has('name')) $data['name'] = $request->name;
+        if ($request->has('layout_key')) $data['layout_key'] = $request->layout_key;
+        if ($request->has('layout_json')) $data['layout_json'] = json_decode($request->layout_json, true);
+        if ($request->has('is_default')) $data['is_default'] = $request->boolean('is_default');
+
+        $template->update($data);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Card template updated successfully',
+            'data'    => $template->fresh()->loadCount('studentCards'),
+        ], 200);
+    }
+
+    public function destroyTemplate($id): \Illuminate\Http\JsonResponse
+    {
+        $template = CardTemplate::find($id);
+
+        if (!$template) {
+            return $this->error('Card template not found', 404);
+        }
+
+        if ($template->is_default) {
+            return $this->error('Cannot delete the default template. Set another template as default first.', 400);
+        }
+
+        // Check if template has associated student cards
+        $cardsCount = $template->studentCards()->count();
+        if ($cardsCount > 0) {
+            return $this->error("Cannot delete template because it is used by {$cardsCount} student card(s).", 400);
+        }
+
+        $template->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Card template deleted successfully',
+        ], 200);
+    }
+
+    public function stats(): \Illuminate\Http\JsonResponse
+    {
+        $totalGenerated = StudentCard::whereNotNull('pdf_path')->count();
+        $totalTemplates = CardTemplate::count();
+        $totalStudents = \App\Models\Student::count();
+        $cardsByTemplate = CardTemplate::withCount('studentCards')->get()->map(function ($t) {
+            return [
+                'id'   => $t->id,
+                'name' => $t->name,
+                'count' => $t->student_cards_count,
+            ];
+        });
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Card generation stats retrieved successfully',
+            'data'    => [
+                'total_generated' => $totalGenerated,
+                'total_templates' => $totalTemplates,
+                'total_students'  => $totalStudents,
+                'by_template'     => $cardsByTemplate,
+            ],
+        ], 200);
     }
 
     private function generatePdfForStudent($student, $card): string
@@ -349,7 +501,7 @@ class CardsController extends Controller
         $request->validate([
             'student_ids' => 'required|array',
             'student_ids.*' => 'integer|exists:students,id',
-            'layout' => 'nullable|string|in:classic,modern,premium',
+            'layout' => 'nullable|string|in:classic,modern,premium,corporate,corporate-blue,corporate-yellow,official',
         ]);
 
         $studentIds = $request->input('student_ids');
