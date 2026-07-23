@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
 use App\Http\Controllers\Api\V1\CardsController;
-use App\Http\Controllers\Api\V1\Student\StudentCardController;
+use App\Http\Controllers\Api\V1\Student\StudentRecordController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -19,15 +19,18 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::get('/student-cards/qr/{qr_token}', [StudentCardController::class, 'resolveQr']);
+    Route::get('/student-cards/student/{student_id_no}', [StudentCardController::class, 'resolveByStudentId']);
+    Route::get('/cards/verify/{qrToken}', [StudentCardController::class, 'verify']);
+    Route::get('/students/verify/{studentId}', [StudentCardController::class, 'verifyById'])->whereNumber('studentId');
 
     Route::middleware('jwt.auth')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::get('dashboard/enrollment', [DashboardController::class, 'enrollmentStats']);
-        
+
         Route::post('/student-cards', [StudentCardController::class, 'store']);
-        
+
         Route::middleware('permission:users.manage')->group(function () {
             Route::apiResource('users', UserController::class);
             Route::patch('users/{user}/toggle', [UserController::class, 'toggle']);

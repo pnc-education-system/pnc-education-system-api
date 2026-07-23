@@ -26,10 +26,67 @@ class StudentCardController extends Controller
             return $this->error('Student not found.', 404);
         }
 
-        // BR-5 Guard: Student must have a saved photo
-        if (empty($student->photo_path) || !Storage::disk('public')->exists($student->photo_path)) {
-            return $this->error('Cannot generate ID card: Student photo is missing (BR-5 Guard).', 422);
+        $student->load(['cards', 'selectionBatch']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student profile retrieved successfully.',
+            'data' => new StudentProfileResource($student),
+        ]);
+    }
+
+    public function resolveByStudentId(string $student_id_no)
+    {
+        $student = $this->studentCardService->findStudentByStudentIdNo($student_id_no);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found with the given ID.',
+            ], 404);
         }
+
+        $student->load(['cards', 'selectionBatch']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student profile retrieved successfully.',
+            'data' => new StudentProfileResource($student),
+        ]);
+    }
+
+    public function verify(string $qrToken)
+    {
+        $student = $this->studentCardService->findStudentByQrToken($qrToken);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or unknown QR token.',
+            ], 404);
+        }
+
+        $student->load(['cards', 'enrollmentStatusHistories.changedBy', 'selectionBatch', 'creator']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student profile and history retrieved successfully.',
+            'data' => new StudentProfileResource($student),
+        ]);
+    }
+
+    public function verifyById(int $studentId)
+    {
+        $student = $this->studentCardService->findStudentById($studentId);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.',
+            ], 404);
+        }
+
+        $student->load(['cards', 'enrollmentStatusHistories.changedBy', 'selectionBatch', 'creator']);
 
         // 1. Convert Student Photo to Base64 for DomPDF rendering
         $photoAbsolutePath = Storage::disk('public')->path($student->photo_path);
