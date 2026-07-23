@@ -178,16 +178,17 @@ class StudentController extends Controller
 
         // 4. Incident/Journal records (StudentRecords)
         $records = \App\Models\StudentRecord::where('student_id', $id)
+            ->with('creator:id,name')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($item) {
                 return [
                     'id' => 'record_' . $item->id,
                     'type' => 'record_update',
-                    'title' => 'Journal Record: ' . ($item->record_type ?? 'General'),
-                    'description' => $item->details ?? '',
-                    'performed_by' => 'System',
-                    'date' => $item->created_at?->format('Y-m-d H:i:s') ?? now()->format('Y-m-d H:i:s'),
+                    'title' => $item->title ?? ('Journal Record: ' . ucfirst($item->category ?? 'general')),
+                    'description' => $item->description ?? '',
+                    'performed_by' => $item->creator?->name ?? 'System',
+                    'date' => ($item->record_date ?? $item->created_at)?->format('Y-m-d H:i:s') ?? now()->format('Y-m-d H:i:s'),
                 ];
             });
 
