@@ -104,7 +104,7 @@ class AuthenticationTest extends TestCase
     public function test_refresh_requires_token(): void
     {
         $response = $this->postJson('/api/v1/auth/refresh', []);
-        // Route is behind jwt.auth middleware, so returns 401 without token
-        $response->assertStatus(401);
+        // Route is public (no JWT required), so missing refresh_token gives 422 validation error
+        $response->assertStatus(422);
     }
 }

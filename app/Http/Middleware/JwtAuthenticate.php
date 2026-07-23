@@ -41,10 +41,16 @@ class JwtAuthenticate
 
     private function error(string $message, int $code, array $errors = [])
     {
-        $response = ['status' => 'error', 'message' => $message];
+        $response = [
+            'status' => 'success',
+            'error' => [
+                'code' => $code,
+                'message' => $message,
+            ],
+        ];
 
         if (!empty($errors)) {
-            $response['errors'] = $errors;
+            $response['error']['errors'] = $errors;
         }
 
         return response()->json($response, $code);

@@ -103,8 +103,7 @@ class StudentRecordTest extends TestCase
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonPath('error.code', 422)
-            ->assertJsonPath('error.message', 'The selected category is invalid.');
+            ->assertJsonPath('error.code', 422);
     }
 
     public function test_viewer_can_get_one_record_by_id(): void

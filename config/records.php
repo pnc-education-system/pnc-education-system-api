@@ -13,6 +13,8 @@ return [
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            // .docx files are ZIP archives internally — many servers detect them as application/zip
+            'application/zip',
         ],
         'storage_path' => 'records/attachments',
     ],

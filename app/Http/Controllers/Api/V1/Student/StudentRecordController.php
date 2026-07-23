@@ -26,7 +26,7 @@ class StudentRecordController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Student records retrieved successfully',
-            'data' => $records,
+            'data' => $records->map(fn($r) => $r->toFrontendArray()),
             'meta' => [
                 'categories' => StudentRecord::CATEGORIES,
             ],
@@ -35,11 +35,11 @@ class StudentRecordController extends Controller
 
     public function store(StudentRecordRequest $request, Student $student)
     {
-        $record = DB::transaction(function () use ($request, $student) {
-            return $student->records()->create([
-                ...$request->validated(),
-                'created_by' => auth()->id(),
-            ]);
+        $data = StudentRecord::mapFrontendFields($request->validated());
+        $data['created_by'] = $data['created_by'] ?? auth()->id();
+
+        $record = DB::transaction(function () use ($data, $student) {
+            return $student->records()->create($data);
         });
 
         $record->load('creator:id,name');
@@ -48,7 +48,7 @@ class StudentRecordController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Student record created successfully',
-            'data' => $record,
+            'data' => $record->toFrontendArray(),
         ], 201);
     }
 
@@ -67,7 +67,7 @@ class StudentRecordController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Student record retrieved successfully',
-            'data' => $record->load('creator:id,name'),
+            'data' => $record->load('creator:id,name')->toFrontendArray(),
         ]);
     }
 
@@ -83,10 +83,11 @@ class StudentRecordController extends Controller
             return $this->error('Record not found for this student', 404);
         }
 
-        $oldValues = $record->only(array_keys($request->validated()));
+        $data = StudentRecord::mapFrontendFields($request->validated());
+        $oldValues = $record->only(array_keys($data));
 
-        DB::transaction(function () use ($request, $record) {
-            $record->update($request->validated());
+        DB::transaction(function () use ($data, $record) {
+            $record->update($data);
         });
 
         $record = $record->fresh()->load('creator:id,name');
@@ -95,7 +96,7 @@ class StudentRecordController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Student record updated successfully',
-            'data' => $record,
+            'data' => $record->toFrontendArray(),
         ]);
     }
 
