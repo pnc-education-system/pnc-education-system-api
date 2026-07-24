@@ -419,4 +419,32 @@ class StudentController extends Controller
             return $this->error('Failed to bulk confirm students: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * Serve a student's photo through Laravel middleware stack.
+     * This ensures CORS headers are applied (via HandleCors middleware).
+     */
+    public function servePhoto($id)
+    {
+        $student = Student::find($id);
+
+        if (!$student || !$student->photo_path) {
+            return $this->error('Photo not found', 404);
+        }
+
+        $disk = Storage::disk('public');
+
+        if (!$disk->exists($student->photo_path)) {
+            return $this->error('Photo file not found', 404);
+        }
+
+        $absolutePath = $disk->path($student->photo_path);
+        $mimeType = $disk->mimeType($student->photo_path) ?: 'image/jpeg';
+
+        return response()->file($absolutePath, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=86400',
+            'Access-Control-Allow-Origin' => '*',
+        ]);
+    }
 }

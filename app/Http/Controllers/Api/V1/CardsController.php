@@ -86,7 +86,6 @@ class CardsController extends Controller
         $templateId       = (int) $request->input('template_id');
 
         try {
-            // Dispatch the queued job
             $jobId = Str::uuid()->toString();
             $job = new GenerateBatchCards($selectionBatchId, $templateId);
             dispatch($job);
@@ -185,7 +184,6 @@ class CardsController extends Controller
                 return $this->error('Student not found.', 404);
             }
 
-            // BR-5 Guard: Student must have a saved photo
             if (empty($student->photo_path) || !Storage::disk('public')->exists($student->photo_path)) {
                 return response()->json([
                     'status'  => 'failed',
@@ -198,7 +196,6 @@ class CardsController extends Controller
                 ], 422);
             }
 
-            // Determine template: use provided template_id or fall back to default
             $templateId = $request->input('template_id');
             if ($templateId) {
                 $template = CardTemplate::find($templateId);
@@ -224,7 +221,6 @@ class CardsController extends Controller
                 ], 422);
             }
 
-            // Generate or update the student card record
             $card = StudentCard::updateOrCreate(
                 ['student_id' => $studentId],
                 [
@@ -234,35 +230,36 @@ class CardsController extends Controller
                 ]
             );
 
-            // Generate PDF server-side using CardPdfGenerator
+            $photoAbsolutePath = Storage::disk('public')->path($student->photo_path);
+            $photoMimeType = mime_content_type($photoAbsolutePath) ?: 'image/jpeg';
+            $photoBase64 = 'data:' . $photoMimeType . ';base64,' . base64_encode(file_get_contents($photoAbsolutePath));
+
+            $verifyUrl = $this->buildVerifyUrl($student);
+            $qrRaw = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(120)->margin(1)->generate($verifyUrl);
+            $qrCodeBase64 = 'data:image/svg+xml;base64,' . base64_encode($qrRaw);
+
             $cardData = [
-                [
-                    'name'        => $student->full_name,
-                    'student_id'  => $student->student_id_no,
-                    'photo_path'  => $student->photo_path,
-                    'batch_name'  => $student->selection_batch_name ?? '',
-                    'gender'      => $student->gender ?? '',
-                    'dob'         => $student->dob ? $student->dob->format('Y-m-d') : '',
-                    'province'    => $student->province ?? '',
-                ]
+                'student'      => $student,
+                'photoBase64'  => $photoBase64,
+                'qrCodeBase64' => $qrCodeBase64,
             ];
 
-            $pdfGenerator = new \App\Services\Card\CardPdfGenerator();
-            $pdfBytes = $pdfGenerator->generate([$cardData]);
+            $layout = $template->layout_key ?? 'classic';
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.batch-student-cards', [
+                'cards'  => [$cardData],
+                'layout' => $layout,
+            ])->setPaper('a4', 'portrait');
 
-            // Save PDF to storage
+            $pdfBytes = $pdf->output();
+
             $disk = config('cards.disk', 'public');
-            $path = config('cards.path', 'cards');
+            $pathConfig = config('cards.path', 'cards');
             $filename = "student-card-{$student->student_id_no}-{$card->id}.pdf";
-            $fullPath = $path . '/' . $filename;
+            $fullPath = $pathConfig . '/' . $filename;
             Storage::disk($disk)->put($fullPath, $pdfBytes);
 
-            // Update card with PDF path and atomically increment printed count
             $card->increment('printed_count');
             $card->update(['pdf_path' => $fullPath, 'issued_at' => now()]);
-
-            // Count total generated cards
-            $totalGenerated = StudentCard::whereNotNull('pdf_path')->count();
 
             return response()->json([
                 'status'  => 'success',
@@ -497,15 +494,15 @@ class CardsController extends Controller
             // Get the card record to determine template
             $card = StudentCard::where('student_id', $studentId)->latest()->first();
             $template = null;
-            
+
             if ($card) {
                 $template = $card->cardTemplate;
             }
-            
+
             if (!$template) {
                 $template = CardTemplate::where('is_default', true)->first();
             }
-            
+
             if (!$template) {
                 $template = CardTemplate::first();
             }
@@ -562,10 +559,11 @@ class CardsController extends Controller
             $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', $studentIdNo);
             $filename = "ID_Card_{$sanitized}.pdf";
 
-            return response($pdf->output())
+            $pdfOutput = $pdf->output();
+
+            return response($pdfOutput)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', "attachment; filename=\"{$filename}\"")
-                ->header('Content-Length', strlen($pdf->output()));
+                ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed to download student PDF', [
                 'student_id' => $studentId,
@@ -637,7 +635,8 @@ class CardsController extends Controller
 
             // Return PDF as download
             $filename = "ID_Cards_Batch_" . date('Y-m-d_His') . ".pdf";
-            return response($pdf->output())
+            $pdfOutput = $pdf->output();
+            return response($pdfOutput)
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
         } catch (\Throwable $e) {
@@ -657,14 +656,15 @@ class CardsController extends Controller
     {
         $origin = rtrim(config('app.url'), '/');
         $params = http_build_query([
-            'name'   => $student->full_name ?? '',
-            'gender' => $student->gender ?? '',
-            'batch'  => $student->selection_batch_name ?? '',
-            'year'   => $student->intake_year ?? '',
-            'status' => $student->enrollment_status ?? '',
-            'dob'    => $student->dob ? $student->dob->format('Y-m-d') : '',
+            'name'     => $student->full_name ?? '',
+            'gender'   => $student->gender ?? '',
+            'batch'    => $student->selection_batch_name ?? '',
+            'year'     => $student->intake_year ?? '',
+            'status'   => $student->enrollment_status ?? '',
+            'dob'      => $student->dob ? $student->dob->format('Y-m-d') : '',
             'province' => $student->province ?? '',
         ]);
+
         return $origin . '/verify/' . urlencode($student->student_id_no) . '?' . $params;
     }
 
@@ -676,6 +676,7 @@ class CardsController extends Controller
             if (!$batch) {
                 return $this->error('Selection batch not found', 404);
             }
+
             $latestCard = StudentCard::whereHas('student', function ($q) use ($batchId) {
                 $q->where('selection_batch_id', $batchId);
             })->whereNotNull('pdf_path')->latest()->first();

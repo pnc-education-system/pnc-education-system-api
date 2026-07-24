@@ -27,6 +27,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/cards/verify/{qrToken}', [StudentCardController::class, 'verify']);
     Route::get('/students/verify/{studentId}', [StudentCardController::class, 'verifyById'])->whereNumber('studentId');
 
+    // Public photo serving route — no auth required so <img> tags can load photos
+    // (photos on student cards are meant to be publicly viewable for verification)
+    Route::get('photos/{studentId}', [StudentController::class, 'servePhoto'])->whereNumber('studentId');
+
     Route::middleware('jwt.auth')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);

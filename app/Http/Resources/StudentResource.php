@@ -4,11 +4,25 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class StudentResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $photoBase64 = null;
+        if ($this->photo_path && Storage::disk('public')->exists($this->photo_path)) {
+            try {
+                $photoData = Storage::disk('public')->get($this->photo_path);
+                if ($photoData !== null) {
+                    $mimeType = Storage::disk('public')->mimeType($this->photo_path) ?: 'image/jpeg';
+                    $photoBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($photoData);
+                }
+            } catch (\Exception $e) {
+                // Silently fail — photo_base64 will remain null
+            }
+        }
+
         return [
             'id' => $this->id,
             'student_id_no' => $this->student_id_no,
@@ -28,6 +42,8 @@ class StudentResource extends JsonResource
             'enrollment_status' => $this->enrollment_status,
             'status' => $this->enrollment_status,
             'photo_path' => $this->photo_path,
+            'photo_url' => $this->photo_path ? url('storage/' . $this->photo_path) : null,
+            'photo_base64' => $photoBase64,
             'intake_year' => $this->intake_year,
             'enrolled_at' => $this->enrolled_at ? $this->enrolled_at->format('Y-m-d') : null,
             'created_by' => $this->created_by,
