@@ -72,6 +72,41 @@
         .premium-placeholder { width: 34px; height: 34px; background-color: #92400e; font-size: 11px; font-weight: 700; color: white; text-align: center; line-height: 34px; }
         .premium-qr-bg { background-color: #0f172a; border: 1px solid rgba(245,158,11,0.15); padding: 1px; }
         .premium-gold-divider { height: 1px; background-color: rgba(245,158,11,0.15); margin: 2px 0; }
+
+        /* ═══ CORPORATE LAYOUTS ═══ */
+        .corp-header { padding: 4px 7px; color: white; }
+        .corp-header-green { background-color: #16A34A; }
+        .corp-header-blue { background-color: #2563EB; }
+        .corp-header-yellow { background-color: #EAB308; }
+        .corp-logo { width: 22px; height: 22px; background-color: rgba(255,255,255,0.2); text-align: center; vertical-align: middle; font-size: 7px; font-weight: 800; color: white; border-radius: 4px; }
+        .corp-body { padding: 3px 7px; text-align: center; }
+        .corp-photo { width: 34px; height: 34px; border: 1.5px solid; background-color: #f8fafc; margin: 0 auto 3px; text-align: center; vertical-align: middle; overflow: hidden; border-radius: 8px; }
+        .corp-photo-green { border-color: #16A34A; }
+        .corp-photo-blue { border-color: #2563EB; }
+        .corp-photo-yellow { border-color: #EAB308; }
+        .corp-photo img { width: 34px; height: 34px; }
+        .corp-placeholder { width: 34px; height: 34px; font-size: 11px; font-weight: 700; color: #94a3b8; text-align: center; line-height: 34px; background: #f1f5f9; }
+        .corp-status-pill { display: inline-block; padding: 1px 6px; font-size: 6px; font-weight: 700; border-radius: 8px; margin-bottom: 2px; border: 0.5px solid; }
+        .corp-name { font-size: 8px; font-weight: 700; color: #1e293b; margin: 0 0 1px; }
+        .corp-id { font-family: 'DejaVu Sans Mono', monospace; font-size: 7px; font-weight: 600; margin: 0 0 2px; }
+        .corp-meta { font-size: 6px; color: #64748b; margin: 0 0 2px; }
+        .corp-intake-pill { display: inline-block; padding: 1px 4px; font-size: 6px; font-weight: 500; border-radius: 2px; margin: 0 1px; }
+
+        /* ═══ OFFICIAL LAYOUT ═══ */
+        .official-gold-stripe { width: 4px; background-color: #F5C518; }
+        .official-header { background-color: #1B3FA0; padding: 4px 7px 4px 10px; color: white; }
+        .official-logo { width: 22px; height: 22px; border-radius: 50%; background-color: rgba(255,255,255,0.2); text-align: center; vertical-align: middle; font-size: 7px; font-weight: 800; color: white; }
+        .official-body { padding: 2px 7px 2px 10px; }
+        .official-photo { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #1B3FA0; background-color: #f8fafc; margin: 0 auto 2px; text-align: center; vertical-align: middle; overflow: hidden; }
+        .official-photo img { width: 34px; height: 34px; }
+        .official-placeholder { width: 34px; height: 34px; border-radius: 50%; font-size: 11px; font-weight: 700; color: #94a3b8; text-align: center; line-height: 34px; background: #f1f5f9; }
+        .official-name { font-size: 8px; font-weight: 700; color: #1B3FA0; margin: 0 0 1px; }
+        .official-role { display: inline-block; padding: 1px 5px; font-size: 5px; font-weight: 700; background-color: #F5C518; color: #1B3FA0; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+        .official-info-row { font-size: 6px; margin: 1px 0; }
+        .official-info-label { color: #94a3b8; font-weight: 600; }
+        .official-info-value { color: #334155; font-weight: 700; font-family: 'DejaVu Sans Mono', monospace; }
+        .official-barcode-svg { width: 100%; height: 16px; margin-top: 2px; }
+        .official-barcode-text { font-size: 5px; font-family: 'DejaVu Sans Mono', monospace; color: #64748b; text-align: center; letter-spacing: 1px; margin: 0; }
     </style>
 </head>
 <body>
@@ -234,6 +269,122 @@
                             @endif
 
                             <p class="footer-note">PNC @if($student->intake_year) · {{ $student->intake_year }}@endif</p>
+                        </div>
+                    </div>
+
+                @elseif ($layout === 'corporate' || $layout === 'corporate-blue' || $layout === 'corporate-yellow')
+                    @php
+                        $corpColor = $layout === 'corporate-blue' ? 'blue' : ($layout === 'corporate-yellow' ? 'yellow' : 'green');
+                        $corpHex = $layout === 'corporate-blue' ? '#2563EB' : ($layout === 'corporate-yellow' ? '#EAB308' : '#16A34A');
+                        $corpHeaderClass = $layout === 'corporate-blue' ? 'corp-header-blue' : ($layout === 'corporate-yellow' ? 'corp-header-yellow' : 'corp-header-green');
+                        $corpPhotoClass = $layout === 'corporate-blue' ? 'corp-photo-blue' : ($layout === 'corporate-yellow' ? 'corp-photo-yellow' : 'corp-photo-green');
+                        $statusColor = $status === 'enrolled' ? '#059669' : ($status === 'pending' ? '#D97706' : ($status === 'graduated' ? '#7C3AED' : '#DC2626'));
+                        $statusBg = $status === 'enrolled' ? '#ECFDF5' : ($status === 'pending' ? '#FFFBEB' : ($status === 'graduated' ? '#F5F3FF' : '#FEF2F2'));
+                    @endphp
+                    {{-- ═══ CORPORATE ({{ $layout }}) ═══ --}}
+                    <div class="card-inner" style="position: relative; overflow: hidden;">
+                        {{-- Corner accent --}}
+                        <div style="position: absolute; top: 0; right: 0; width: 40px; height: 40px; overflow: hidden; pointer-events: none;">
+                            <div style="position: absolute; top: 0; right: 0; width: 30px; height: 30px; background: linear-gradient(135deg, {{ $corpHex }}CC, {{ $corpHex }}); border-radius: 0 0 0 16px;"></div>
+                        </div>
+                        <div class="corp-header {{ $corpHeaderClass }}">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="22">
+                                        <div class="corp-logo">PNC</div>
+                                    </td>
+                                    <td style="padding-left: 6px;">
+                                        <p class="header-title">Passerellesnumeriques Cambodia</p>
+                                        <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="corp-body">
+                            <div class="corp-photo {{ $corpPhotoClass }}">
+                                @if(!empty($card['photoBase64']))
+                                    <img src="{{ $card['photoBase64'] }}" alt="Photo" />
+                                @else
+                                    <div class="corp-placeholder">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                    </div>
+                                @endif
+                            </div>
+                            <p class="corp-name">{{ Str::limit($student->full_name ?? 'Student Name', 24) }}</p>
+                            <p class="corp-id" style="color: {{ $corpHex }};">{{ $student->student_id_no ?? 'ST-0000' }}</p>
+                            <div>
+                                <span class="corp-status-pill" style="background: {{ $statusBg }}; color: {{ $statusColor }}; border-color: {{ $statusColor }}33;">
+                                    {{ ucfirst($student->enrollment_status ?? 'Pending') }}
+                                </span>
+                                <span class="corp-intake-pill" style="background: #f1f5f9; color: #64748b; border: 0.5px solid #e2e8f0;">{{ $student->selection_batch_name ?? '—' }}</span>
+                                @if($student->intake_year)
+                                <span class="corp-intake-pill" style="background: #f1f5f9; color: #64748b; border: 0.5px solid #e2e8f0;">Intake: {{ $student->intake_year }}</span>
+                                @endif
+                            </div>
+                            @if($card['qrCodeBase64'])
+                            <table class="qr-row" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 2px;">
+                                <tr>
+                                    <td>
+                                        <p class="qr-label-text">Scan to verify</p>
+                                        <p class="qr-label-id">{{ $student->student_id_no ?? '' }}</p>
+                                    </td>
+                                    <td class="qr-img-box">
+                                        <div style="background: white; border: 1.5px solid {{ $corpHex }}; border-radius: 4px; padding: 1px;">
+                                            <img src="{{ $card['qrCodeBase64'] }}" alt="QR" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            @endif
+                        </div>
+                    </div>
+
+                @elseif ($layout === 'official')
+                    {{-- ═══ OFFICIAL ═══ --}}
+                    <div class="card-inner" style="position: relative;">
+                        {{-- Left gold stripe --}}
+                        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background-color: #F5C518; z-index: 1;"></div>
+                        <div class="official-header">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="22">
+                                        <div class="official-logo">PNC</div>
+                                    </td>
+                                    <td style="padding-left: 6px;">
+                                        <p class="header-title">Passerellesnumeriques Cambodia</p>
+                                        <p class="header-sub" style="color: rgba(255,255,255,0.5);">Cambodia</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div style="padding: 2px 7px 2px 10px; text-align: center;">
+                            <div class="official-photo">
+                                @if(!empty($card['photoBase64']))
+                                    <img src="{{ $card['photoBase64'] }}" alt="Photo" />
+                                @else
+                                    <div class="official-placeholder">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                    </div>
+                                @endif
+                            </div>
+                            <p class="official-name">{{ Str::limit($student->full_name ?? 'Student Name', 22) }}</p>
+                            <span class="official-role">Student</span>
+
+                            <div style="text-align: left; margin-top: 2px;">
+                                <p class="official-info-row"><span class="official-info-label">ID No</span> <span class="official-info-value">: {{ $student->student_id_no ?? 'ST-0000' }}</span></p>
+                                <p class="official-info-row"><span class="official-info-label">Batch</span> <span style="color: #334155; font-weight: 600;">: {{ $student->selection_batch_name ?? '—' }}</span></p>
+                                <p class="official-info-row"><span class="official-info-label">Year</span> <span style="color: #334155; font-weight: 600;">: {{ $student->intake_year ?? '—' }}</span></p>
+                                <p class="official-info-row"><span class="official-info-label">Status</span> <span style="color: #334155; font-weight: 600; text-transform: capitalize;">: {{ ucfirst($student->enrollment_status ?? 'Pending') }}</span></p>
+                            </div>
+
+                            {{-- Barcode --}}
+                            <div style="margin-top: 2px;">
+                                <svg class="official-barcode-svg" viewBox="0 0 140 16" preserveAspectRatio="none">
+                                    <rect x="0" y="0" width="2" height="16" fill="#111"/><rect x="3" y="0" width="1" height="16" fill="#111"/><rect x="5" y="0" width="2" height="16" fill="#111"/><rect x="8" y="0" width="3" height="16" fill="#111"/><rect x="12" y="0" width="1" height="16" fill="#111"/><rect x="14" y="0" width="2" height="16" fill="#111"/><rect x="17" y="0" width="1" height="16" fill="#111"/><rect x="19" y="0" width="3" height="16" fill="#111"/><rect x="23" y="0" width="1" height="16" fill="#111"/><rect x="25" y="0" width="2" height="16" fill="#111"/><rect x="28" y="0" width="3" height="16" fill="#111"/><rect x="32" y="0" width="1" height="16" fill="#111"/><rect x="34" y="0" width="2" height="16" fill="#111"/><rect x="37" y="0" width="1" height="16" fill="#111"/><rect x="39" y="0" width="3" height="16" fill="#111"/><rect x="43" y="0" width="2" height="16" fill="#111"/><rect x="46" y="0" width="1" height="16" fill="#111"/><rect x="48" y="0" width="2" height="16" fill="#111"/><rect x="51" y="0" width="3" height="16" fill="#111"/><rect x="55" y="0" width="1" height="16" fill="#111"/><rect x="57" y="0" width="2" height="16" fill="#111"/><rect x="60" y="0" width="1" height="16" fill="#111"/><rect x="62" y="0" width="3" height="16" fill="#111"/><rect x="66" y="0" width="2" height="16" fill="#111"/><rect x="69" y="0" width="1" height="16" fill="#111"/><rect x="71" y="0" width="2" height="16" fill="#111"/><rect x="74" y="0" width="3" height="16" fill="#111"/><rect x="78" y="0" width="1" height="16" fill="#111"/><rect x="80" y="0" width="2" height="16" fill="#111"/><rect x="83" y="0" width="1" height="16" fill="#111"/><rect x="85" y="0" width="3" height="16" fill="#111"/><rect x="89" y="0" width="2" height="16" fill="#111"/><rect x="92" y="0" width="1" height="16" fill="#111"/><rect x="94" y="0" width="2" height="16" fill="#111"/><rect x="97" y="0" width="3" height="16" fill="#111"/><rect x="101" y="0" width="1" height="16" fill="#111"/><rect x="103" y="0" width="2" height="16" fill="#111"/><rect x="106" y="0" width="1" height="16" fill="#111"/><rect x="108" y="0" width="3" height="16" fill="#111"/><rect x="112" y="0" width="2" height="16" fill="#111"/><rect x="115" y="0" width="1" height="16" fill="#111"/><rect x="117" y="0" width="2" height="16" fill="#111"/><rect x="120" y="0" width="3" height="16" fill="#111"/><rect x="124" y="0" width="1" height="16" fill="#111"/><rect x="126" y="0" width="2" height="16" fill="#111"/><rect x="129" y="0" width="1" height="16" fill="#111"/><rect x="131" y="0" width="3" height="16" fill="#111"/><rect x="135" y="0" width="2" height="16" fill="#111"/><rect x="138" y="0" width="2" height="16" fill="#111"/>
+                                </svg>
+                                <p class="official-barcode-text">{{ $student->student_id_no ?? 'ST-0000' }}</p>
+                            </div>
                         </div>
                     </div>
 

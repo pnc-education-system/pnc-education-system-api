@@ -443,7 +443,9 @@ class StudentController extends Controller
 
         return response()->file($absolutePath, [
             'Content-Type' => $mimeType,
-            'Cache-Control' => 'public, max-age=86400',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
             'Access-Control-Allow-Origin' => '*',
         ]);
     }

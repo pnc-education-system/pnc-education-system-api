@@ -20,7 +20,7 @@ class UserSeeder extends Seeder
             ['email' => 'admin@pnc.edu.kh'],
             [
                 'role_id'   => $adminRole->id,
-                'name'      => 'System Administrator',
+                'name'      => 'Administrator',
                 'password'  => Hash::make('Admin@123456'),
                 'is_active' => true,
                 'updated_at' => now(),
@@ -31,7 +31,7 @@ class UserSeeder extends Seeder
             ['email' => 'staff@pnc.edu.kh'],
             [
                 'role_id'   => $staffRole->id,
-                'name'      => 'Chandy Srin',
+                'name'      => 'Samkhnn KHAN',
                 'password'  => Hash::make('Staff@123456'),
                 'is_active' => true,
                 'updated_at' => now(),
@@ -42,7 +42,7 @@ class UserSeeder extends Seeder
             ['email' => 'management@pnc.edu.kh'],
             [
                 'role_id'   => $viewerRole->id,
-                'name'      => 'Sok Seyla',
+                'name'      => 'Sim HUL',
                 'password'  => Hash::make('Manager@123456'),
                 'is_active' => true,
                 'updated_at' => now(),

@@ -104,6 +104,14 @@ class Student extends Model
         }
 
         $this->enrollment_status = $newStatus;
+
+        // Auto-set enrolled_at when transitioning to Enrolled
+        if ($newStatus === self::STATUS_ENROLLED && $oldStatus !== self::STATUS_ENROLLED) {
+            $this->enrolled_at = now();
+        } elseif ($oldStatus === self::STATUS_ENROLLED && $newStatus !== self::STATUS_ENROLLED) {
+            $this->enrolled_at = null;
+        }
+
         $this->save();
 
         return $this->enrollmentStatusHistories()->create([
