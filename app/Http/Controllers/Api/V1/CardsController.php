@@ -196,16 +196,26 @@ class CardsController extends Controller
                 ], 422);
             }
 
-            $templateId = $request->input('template_id');
-            if ($templateId) {
-                $template = CardTemplate::find($templateId);
-                if (!$template) {
-                    return $this->error('Selected card template not found.', 422);
-                }
-            } else {
-                $template = CardTemplate::where('is_default', true)->first();
-                if (!$template) {
-                    $template = CardTemplate::first();
+            // Use layout_key from request if provided (for frontend-selected template)
+            $layoutKey = $request->input('layout');
+            $template = null;
+
+            if ($layoutKey) {
+                $template = CardTemplate::where('layout_key', $layoutKey)->first();
+            }
+
+            if (!$template) {
+                $templateId = $request->input('template_id');
+                if ($templateId) {
+                    $template = CardTemplate::find($templateId);
+                    if (!$template) {
+                        return $this->error('Selected card template not found.', 422);
+                    }
+                } else {
+                    $template = CardTemplate::where('is_default', true)->first();
+                    if (!$template) {
+                        $template = CardTemplate::first();
+                    }
                 }
             }
 
@@ -244,7 +254,8 @@ class CardsController extends Controller
                 'qrCodeBase64' => $qrCodeBase64,
             ];
 
-            $layout = $template->layout_key ?? 'classic';
+            // Use the layout from the request if provided (preferred), otherwise fall back to the template's layout_key
+            $layout = $request->input('layout', $template->layout_key ?? 'classic');
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.batch-student-cards', [
                 'cards'  => [$cardData],
                 'layout' => $layout,
@@ -469,7 +480,7 @@ class CardsController extends Controller
         return $path;
     }
 
-    public function download($studentId)
+    public function download(Request $request, $studentId)
     {
         try {
             $student = \App\Models\Student::find($studentId);
@@ -543,17 +554,14 @@ class CardsController extends Controller
                 'qrCodeBase64' => $qrCodeBase64,
             ];
 
-            // Determine layout from template
-            $layout = 'classic';
-            if ($template->layout_key) {
-                $layout = $template->layout_key;
-            }
+            // Determine layout from request query param (preferred) or template
+            $layout = $request->input('layout', $template->layout_key ?? 'classic');
 
-            // Render single card PDF using DomPDF with batch template
+            // Render single card using the same batch template view (supports all 7 DB layouts)
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.batch-student-cards', [
                 'cards' => [$cardData],
                 'layout' => $layout,
-            ])->setPaper('a4', 'portrait');
+            ])->setPaper([0, 0, 340, 520], 'portrait');
 
             $studentIdNo = $student->student_id_no ?? "student_{$studentId}";
             $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', $studentIdNo);
