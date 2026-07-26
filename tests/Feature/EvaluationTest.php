@@ -8,6 +8,7 @@ use App\Models\EvaluationQuestion;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\EvaluationTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -375,7 +376,8 @@ class EvaluationTest extends TestCase
         $response->assertCreated()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.question', 'How well do you collaborate?')
-            ->assertJsonPath('data.max_score', 10);
+            ->assertJsonPath('data.max_score', 10)
+            ->assertJsonPath('data.sort_order', 3);
     }
 
     public function test_create_question_validates_required_fields(): void
@@ -421,7 +423,8 @@ class EvaluationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.question', 'Updated question')
-            ->assertJsonPath('data.max_score', 8);
+            ->assertJsonPath('data.max_score', 8)
+            ->assertJsonPath('data.sort_order', 1);
     }
 
     public function test_update_question_returns_404_for_missing(): void
@@ -594,5 +597,90 @@ class EvaluationTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseMissing('evaluation_forms', ['id' => $templateId]);
+    }
+
+    // ──────────────────────────────────────────────
+    //  Seeded data integration test
+    // ──────────────────────────────────────────────
+
+    public function test_seeded_data_returns_correct_structure(): void
+    {
+        // Seed the evaluation template with categories and questions
+        $this->seed(EvaluationTemplateSeeder::class);
+
+        // Fetch the list of templates
+        $response = $this->withHeaders($this->authHeaders())
+            ->getJson('/api/v1/evaluation-templates');
+
+        // First, verify the response is a 200
+        $response->assertOk();
+
+        // Get and examine the response body
+        $body = $response->json();
+        $this->assertArrayHasKey('status', $body);
+        $this->assertEquals('success', $body['status']);
+        $this->assertArrayHasKey('data', $body);
+        $this->assertIsArray($body['data']);
+        $this->assertCount(1, $body['data']);
+
+        // Verify template metadata using array access
+        $template = $body['data'][0];
+        $this->assertEquals('Young Stars Self-Assessment', $template['name']);
+        $this->assertEquals('Standard self-evaluation based on the UK Young Stars model.', $template['description']);
+        $this->assertTrue($template['is_active']);
+        $this->assertArrayHasKey('id', $template);
+        $this->assertArrayHasKey('categories', $template);
+        $this->assertArrayHasKey('created_at', $template);
+        $this->assertArrayHasKey('updated_at', $template);
+
+        $templateId = $template['id'];
+        $categories = $template['categories'];
+
+        // Verify 7 categories in correct sort order
+        $this->assertCount(7, $categories);
+        $expectedCategories = [
+            'Communication', 'Teamwork', 'Responsibility',
+            'Problem Solving', 'Leadership', 'Learning Mindset',
+            'Professional Behavior',
+        ];
+        foreach ($expectedCategories as $i => $name) {
+            $this->assertEquals($name, $categories[$i]['name']);
+            $this->assertEquals($i + 1, $categories[$i]['sort_order']);
+        }
+
+        // Verify each category has 2 questions with max_score: 5
+        foreach ($categories as $catIdx => $category) {
+            $questions = $category['questions'];
+            $this->assertCount(2, $questions, "Category {$catIdx} should have 2 questions");
+
+            foreach ($questions as $q) {
+                $this->assertArrayHasKey('id', $q);
+                $this->assertArrayHasKey('question', $q);
+                $this->assertArrayHasKey('max_score', $q);
+                $this->assertArrayHasKey('sort_order', $q);
+                $this->assertIsInt($q['sort_order']);
+                $this->assertEquals(5, $q['max_score']);
+            }
+        }
+
+        // Verify total question count across all categories
+        $allQuestions = collect($categories)->flatMap(fn($cat) => $cat['questions']);
+        $this->assertCount(14, $allQuestions);
+
+        // Verify first and last question text to confirm ordering
+        $this->assertEquals('I express my ideas clearly in meetings and conversations.', $categories[0]['questions'][0]['question']);
+        $this->assertEquals('I communicate respectfully with all staff and peers.', $categories[6]['questions'][1]['question']);
+
+        // ── Single template endpoint ──
+        $singleResponse = $this->withHeaders($this->authHeaders())
+            ->getJson("/api/v1/evaluation-templates/{$templateId}");
+
+        $singleResponse->assertOk();
+        $singleBody = $singleResponse->json();
+        $this->assertEquals('success', $singleBody['status']);
+        $this->assertEquals('Young Stars Self-Assessment', $singleBody['data']['name']);
+        $this->assertCount(7, $singleBody['data']['categories']);
+        $this->assertEquals('Communication', $singleBody['data']['categories'][0]['name']);
+        $this->assertEquals(5, $singleBody['data']['categories'][0]['questions'][0]['max_score']);
     }
 }

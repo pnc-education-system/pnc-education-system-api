@@ -119,11 +119,15 @@ class EvaluationController extends Controller
         $oldValues = $template->toArray();
         $dirty = false;
 
-        foreach (['name', 'description'] as $field) {
-            if ($request->has($field)) {
-                $template->$field = $request->$field;
-                $dirty = true;
-            }
+        if ($request->has('name')) {
+            $template->name = $request->name;
+            $dirty = true;
+        }
+
+        // Use exists() for nullable fields so they can be cleared
+        if ($request->exists('description')) {
+            $template->description = $request->description;
+            $dirty = true;
         }
 
         if ($request->has('is_active')) {
@@ -152,7 +156,7 @@ class EvaluationController extends Controller
      */
     public function destroyTemplate(Request $request, int $id): JsonResponse
     {
-        $template = EvaluationForm::find($id);
+        $template = EvaluationForm::with('categories')->find($id);
 
         if (!$template) {
             return $this->error('Evaluation template not found', 404);
@@ -168,9 +172,10 @@ class EvaluationController extends Controller
 
         $oldValues = $template->toArray();
 
-        // Cascade delete categories and their questions
-        foreach ($template->categories as $category) {
-            $category->questions()->delete();
+        // Cascade delete: batch-delete questions, then categories, then template
+        $categoryIds = $template->categories->pluck('id');
+        if ($categoryIds->isNotEmpty()) {
+            EvaluationQuestion::whereIn('category_id', $categoryIds)->delete();
         }
         $template->categories()->delete();
         $template->delete();
@@ -328,9 +333,10 @@ class EvaluationController extends Controller
             'status'  => 'success',
             'message' => 'Evaluation question created successfully',
             'data'    => [
-                'id'        => $question->id,
-                'question'  => $question->question_text,
-                'max_score' => (float) $question->score,
+                'id'         => $question->id,
+                'question'   => $question->question_text,
+                'max_score'  => (float) $question->score,
+                'sort_order' => $question->sort_order,
             ],
         ], 201);
     }
@@ -377,9 +383,10 @@ class EvaluationController extends Controller
             'status'  => 'success',
             'message' => 'Evaluation question updated successfully',
             'data'    => [
-                'id'        => $question->id,
-                'question'  => $question->question_text,
-                'max_score' => (float) $question->score,
+                'id'         => $question->id,
+                'question'   => $question->question_text,
+                'max_score'  => (float) $question->score,
+                'sort_order' => $question->sort_order,
             ],
         ], 200);
     }

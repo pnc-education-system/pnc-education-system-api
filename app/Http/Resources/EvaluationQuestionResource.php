@@ -15,9 +15,10 @@ class EvaluationQuestionResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'        => $this->id,
-            'question'  => $this->question_text,
-            'max_score' => (float) $this->score,
+            'id'         => $this->id,
+            'question'   => $this->question_text,
+            'max_score'  => (float) $this->score,
+            'sort_order' => $this->sort_order,
         ];
     }
 }

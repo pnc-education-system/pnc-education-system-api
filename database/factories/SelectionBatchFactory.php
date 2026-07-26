@@ -14,7 +14,7 @@ class SelectionBatchFactory extends Factory
         return [
             'name' => 'Batch ' . fake()->year() . ' - ' . fake()->randomElement(['Spring', 'Summer', 'Fall', 'Winter']),
             'year' => fake()->year(),
-            'created_by' => 1,
+            'created_by' => null,
         ];
     }
 }
