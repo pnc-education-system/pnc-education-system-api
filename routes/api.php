@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Record\RecordAttachmentController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
 use App\Http\Controllers\Api\V1\CardsController;
 use App\Http\Controllers\Api\V1\Student\StudentRecordController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -32,6 +33,15 @@ Route::prefix('v1')->group(function () {
     Route::get('photos/{studentId}', [StudentController::class, 'servePhoto'])->whereNumber('studentId');
 
     Route::middleware('jwt.auth')->group(function () {
+        Route::prefix('reports')->middleware('permission:reports.view')->group(function () {
+            Route::get('types', [ReportController::class, 'types']);
+            Route::get('filter-sources', [ReportController::class, 'filterSources']);
+            Route::get('summary', [ReportController::class, 'summary']);
+            Route::post('generate', [ReportController::class, 'generate']);
+            Route::get('download-pdf', [ReportController::class, 'downloadPdf']);
+        });
+
+
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::get('dashboard/enrollment', [DashboardController::class, 'enrollmentStats']);

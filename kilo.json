@@ -1,4 +1,5 @@
 {
+  "$schema": "https://app.kilo.ai/config.json",
   "model": "openai/gpt-4o",
   "small_model": "openai/gpt-4o-mini",
   "default_agent": "code",
