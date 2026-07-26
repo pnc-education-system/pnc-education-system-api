@@ -554,7 +554,7 @@ class CardsController extends Controller
                 'qrCodeBase64' => $qrCodeBase64,
             ];
 
-            // Determine layout from request query param (preferred) or template
+            // Determine layout from request (preferred) or template
             $layout = $request->input('layout', $template->layout_key ?? 'classic');
 
             // Render single card using the same batch template view (supports all 7 DB layouts)

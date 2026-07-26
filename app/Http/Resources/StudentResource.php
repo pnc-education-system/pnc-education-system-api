@@ -46,6 +46,11 @@ class StudentResource extends JsonResource
             'photo_base64' => $photoBase64,
             'intake_year' => $this->intake_year,
             'enrolled_at' => $this->enrolled_at ? $this->enrolled_at->format('Y-m-d') : null,
+            'enrollment_note' => $this->enrollmentStatusHistories()
+                ->where('new_status', 'Enrolled')
+                ->whereNotNull('note')
+                ->latest('created_at')
+                ->value('note'),
             'created_by' => $this->created_by,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

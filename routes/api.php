@@ -106,7 +106,7 @@ Route::prefix('v1')->group(function () {
             Route::get('students-by-batch', [CardsController::class, 'studentsByBatch']);
             Route::post('batch', [CardsController::class, 'batch']);
             Route::post('generate/{studentId}', [CardsController::class, 'generate'])->whereNumber('studentId');
-            Route::get('download/{studentId}', [CardsController::class, 'download'])->whereNumber('studentId');
+            Route::match(['get', 'post'], 'download/{studentId}', [CardsController::class, 'download'])->whereNumber('studentId');
             Route::get('download/batch/{batchId}', [CardsController::class, 'downloadByBatch'])->whereNumber('batchId');
             Route::post('batch-download', [CardsController::class, 'batchDownload']);
         });

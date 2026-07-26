@@ -107,6 +107,8 @@ class StudentImportService
 
     private function buildStudentData(array $row, int $userId): array
     {
+        $enrollmentStatus = $row['enrollment_status'] ?? 'Pending';
+
         return [
             'student_id_no' => $this->getOrGenerateStudentId($row),
             'full_name' => $row['full_name'],
@@ -117,8 +119,9 @@ class StudentImportService
             'province' => $row['province'] ?? null,
             'high_school' => $row['high_school'] ?? null,
             'selection_batch_id' => $row['selection_batch_id'],
-            'enrollment_status' => $row['enrollment_status'] ?? 'Pending',
+            'enrollment_status' => $enrollmentStatus,
             'intake_year' => $row['intake_year'],
+            'enrolled_at' => $enrollmentStatus === 'Enrolled' ? now() : null,
             'created_by' => $userId,
             'photo_path' => null,
         ];
@@ -221,22 +224,25 @@ class StudentImportService
                 DB::transaction(function () use ($chunk, &$totalSuccess, $userId, $selectionBatchId) {
                     $insertData = [];
                     foreach ($chunk as $row) {
-                        $insertData[] = [
-                            'student_id_no'      => $row['student_id_no'],
-                            'full_name'          => $row['full_name'],
-                            'gender'             => $row['gender'],
-                            'dob'                => $row['dob'],
-                            'phone'              => $row['phone'] ?? null,
-                            'email'              => $row['email'] ?? null,
-                            'province'           => $row['province'] ?? null,
-                            'high_school'        => $row['high_school'] ?? '',
-                            'selection_batch_id' => $selectionBatchId ?? $row['selection_batch_id'] ?? null,
-                            'enrollment_status'  => !empty($row['enrollment_status']) ? $row['enrollment_status'] : 'Pending',
-                            'intake_year'        => $batchYear ?? $row['intake_year'],
-                            'created_by'         => $userId,
-                            'created_at'         => now(),
-                            'updated_at'         => now(),
-                        ];
+                    $enrollmentStatus = !empty($row['enrollment_status']) ? $row['enrollment_status'] : 'Pending';
+
+                    $insertData[] = [
+                        'student_id_no'      => $row['student_id_no'],
+                        'full_name'          => $row['full_name'],
+                        'gender'             => $row['gender'],
+                        'dob'                => $row['dob'],
+                        'phone'              => $row['phone'] ?? null,
+                        'email'              => $row['email'] ?? null,
+                        'province'           => $row['province'] ?? null,
+                        'high_school'        => $row['high_school'] ?? '',
+                        'selection_batch_id' => $selectionBatchId ?? $row['selection_batch_id'] ?? null,
+                        'enrollment_status'  => $enrollmentStatus,
+                        'intake_year'        => $batchYear ?? $row['intake_year'],
+                        'enrolled_at'        => $enrollmentStatus === 'Enrolled' ? now() : null,
+                        'created_by'         => $userId,
+                        'created_at'         => now(),
+                        'updated_at'         => now(),
+                    ];
                     }
                     Student::insert($insertData);
                     $totalSuccess += count($insertData);
@@ -306,6 +312,8 @@ class StudentImportService
                 DB::transaction(function () use ($chunk, &$totalSuccess, $userId) {
                     $insertData = [];
                     foreach ($chunk as $row) {
+                        $enrollmentStatus = !empty($row['enrollment_status']) ? $row['enrollment_status'] : 'Pending';
+
                         $insertData[] = [
                             'student_id_no'      => $row['student_id_no'],
                             'full_name'          => $row['full_name'],
@@ -316,8 +324,9 @@ class StudentImportService
                             'province'           => $row['province'] ?? null,
                             'high_school'        => $row['high_school'] ?? '',
                             'selection_batch_id' => $row['selection_batch_id'] ?? null,
-                            'enrollment_status'  => !empty($row['enrollment_status']) ? $row['enrollment_status'] : 'Pending',
+                            'enrollment_status'  => $enrollmentStatus,
                             'intake_year'        => $row['intake_year'],
+                            'enrolled_at'        => $enrollmentStatus === 'Enrolled' ? now() : null,
                             'created_by'         => $userId,
                             'created_at'         => now(),
                             'updated_at'         => now(),

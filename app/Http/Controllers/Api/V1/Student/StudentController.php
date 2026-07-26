@@ -62,6 +62,12 @@ class StudentController extends Controller
 
     public function store(StudentStoreRequest $request)
     {
+        // Auto-set enrolled_at to current time if status is Enrolled and no time was provided
+        $enrolledAt = $request->enrolled_at;
+        if ($request->enrollment_status === Student::STATUS_ENROLLED && empty($enrolledAt)) {
+            $enrolledAt = now();
+        }
+
         $student = Student::create([
             'student_id_no' => $request->student_id_no,
             'full_name' => $request->full_name,
@@ -74,7 +80,7 @@ class StudentController extends Controller
             'selection_batch_id' => $request->selection_batch_id,
             'enrollment_status' => $request->enrollment_status,
             'intake_year' => $request->intake_year,
-            'enrolled_at' => $request->enrolled_at,
+            'enrolled_at' => $enrolledAt,
             'photo_path' => $request->photo_path,
             'created_by' => Auth::id(),
         ]);
@@ -122,6 +128,7 @@ class StudentController extends Controller
                     'type' => 'status_change',
                     'title' => 'Status updated to ' . $item->new_status,
                     'description' => 'Changed from ' . $item->old_status . ($item->note ? '. Note: ' . $item->note : ''),
+                    'note' => $item->note,
                     'performed_by' => $item->changedBy?->name ?? 'System',
                     'date' => $item->created_at?->format('Y-m-d H:i:s'),
                 ];
