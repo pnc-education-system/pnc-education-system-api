@@ -15,20 +15,16 @@ use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
-        // Refresh must be public — the JWT is already expired when we need to refresh
         Route::post('refresh', [AuthController::class, 'refresh']);
         Route::post('password/reset', [AuthController::class, 'requestReset'])->middleware('throttle:3,1');
         Route::post('password/reset/confirm', [AuthController::class, 'confirmReset'])->middleware('throttle:3,1');
     });
 
-    // Public verification routes (no authentication required)
     Route::get('/student-cards/qr/{qr_token}', [StudentCardController::class, 'resolveQr']);
     Route::get('/student-cards/student/{student_id_no}', [StudentCardController::class, 'resolveByStudentId']);
     Route::get('/cards/verify/{qrToken}', [StudentCardController::class, 'verify']);
     Route::get('/students/verify/{studentId}', [StudentCardController::class, 'verifyById'])->whereNumber('studentId');
 
-    // Public photo serving route — no auth required so <img> tags can load photos
-    // (photos on student cards are meant to be publicly viewable for verification)
     Route::get('photos/{studentId}', [StudentController::class, 'servePhoto'])->whereNumber('studentId');
 
     Route::middleware('jwt.auth')->group(function () {
@@ -99,6 +95,11 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:enrollment.manage')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
         });
+
+        Route::middleware('permission:evaluation.submit')->group(function () {
+            Route::post('students/{id}/evaluations', [\App\Http\Controllers\Api\V1\Evaluation\StudentEvaluationController::class, 'store'])
+                ->whereNumber('id');
+        });
         Route::prefix('cards')->group(function () {
             Route::get('templates', [CardsController::class, 'templates']);
             Route::get('templates/{id}', [CardsController::class, 'showTemplate'])->whereNumber('id');
@@ -132,7 +133,6 @@ Route::prefix('v1')->group(function () {
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
         });
 
-        // Listing attachments is a read operation - accessible with records.view
         Route::get('students/{student}/attachments', [RecordAttachmentController::class, 'indexByStudent'])
             ->whereNumber('student')
             ->middleware('permission:records.view,records.manage');
@@ -140,8 +140,6 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:records.manage')->group(function () {
             Route::post('records/{record}/attachments', [RecordAttachmentController::class, 'store'])
                 ->whereNumber('record');
-
-            // Student-scoped attachment endpoints (for frontend compatibility)
             Route::post('students/{student}/attachments', [RecordAttachmentController::class, 'storeForStudent'])
                 ->whereNumber('student');
             Route::delete('students/{student}/attachments/{attachment}', [RecordAttachmentController::class, 'destroy'])
