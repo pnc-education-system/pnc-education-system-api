@@ -60,6 +60,8 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:students.view')->group(function () {
             Route::get('students', [StudentController::class, 'index']);
         });
+        Route::get('dashboard/aggregates', [\App\Http\Controllers\Api\V1\DashboardController::class, 'aggregates'])
+            ->middleware('permission:students.view,records.view,evaluation.view');
         Route::get('students/{id}', [StudentController::class, 'show'])
             ->whereNumber('id')
             ->middleware('permission:students.view,students.edit,enrollment.manage');
