@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\V1\Concerns\ApiResponse;
 use App\Models\Evaluation;
+use App\Models\SelectionBatch;
 use App\Models\Student;
+use App\Models\StudentCard;
 use App\Models\StudentRecord;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -19,18 +22,94 @@ class DashboardController extends Controller
     public function aggregates(): JsonResponse
     {
         $demographics = $this->getDemographics();
+        $cardStats = $this->getCardStats();
         $evaluationStats = $this->getEvaluationStats();
         $recordSummary = $this->getRecordSummary();
+        $enrollmentFlow = $this->getEnrollmentFlow();
+        $byBatch = $this->getEnrollmentByBatch();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Dashboard aggregates retrieved successfully',
             'data' => [
                 'demographics' => $demographics,
+                'card_stats' => $cardStats,
                 'evaluation_stats' => $evaluationStats,
                 'record_summary' => $recordSummary,
+                'enrollment_flow' => $enrollmentFlow,
+                'by_batch' => $byBatch,
             ],
         ], 200);
+    }
+
+    /**
+     * Get card generation statistics
+     */
+    private function getCardStats(): array
+    {
+        return [
+            'total_cards' => StudentCard::count(),
+        ];
+    }
+
+    /**
+     * Get monthly enrollment flow — students submitted vs enrolled per month
+     */
+    private function getEnrollmentFlow(): array
+    {
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        $submitted = array_fill(0, 12, 0);
+        $enrolled = array_fill(0, 12, 0);
+
+        $rows = Student::select(
+                DB::raw('MONTH(created_at) as month'),
+                DB::raw('COUNT(*) as submitted'),
+                DB::raw("SUM(CASE WHEN enrollment_status = 'Enrolled' THEN 1 ELSE 0 END) as enrolled")
+            )
+            ->groupBy(DB::raw('MONTH(created_at)'))
+            ->orderBy(DB::raw('MONTH(created_at)'))
+            ->get();
+
+        foreach ($rows as $row) {
+            // MONTH() returns 1-12, array is 0-indexed
+            $idx = (int) $row->month - 1;
+            if ($idx >= 0 && $idx < 12) {
+                $submitted[$idx] = (int) $row->submitted;
+                $enrolled[$idx] = (int) $row->enrolled;
+            }
+        }
+
+        return [
+            'months' => $months,
+            'submitted' => $submitted,
+            'enrolled' => $enrolled,
+        ];
+    }
+
+    /**
+     * Get student count grouped by selection batch
+     */
+    private function getEnrollmentByBatch(): array
+    {
+        $batches = SelectionBatch::select(
+                'selection_batches.id',
+                'selection_batches.name',
+                'selection_batches.year',
+                DB::raw('COUNT(students.id) as count')
+            )
+            ->leftJoin('students', 'students.selection_batch_id', '=', 'selection_batches.id')
+            ->groupBy('selection_batches.id', 'selection_batches.name', 'selection_batches.year')
+            ->orderBy('selection_batches.year')
+            ->orderBy('selection_batches.name')
+            ->get();
+
+        return $batches->map(function ($b) {
+            return [
+                'batch_name' => $b->name . ' (' . $b->year . ')',
+                'year' => (int) $b->year,
+                'count' => (int) $b->count,
+            ];
+        })->toArray();
     }
 
     /**
