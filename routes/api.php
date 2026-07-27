@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Record\RecordAttachmentController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
 use App\Http\Controllers\Api\V1\CardsController;
 use App\Http\Controllers\Api\V1\Student\StudentRecordController;
+use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -121,6 +122,13 @@ Route::prefix('v1')->group(function () {
             Route::post('cards/reprint', [CardsController::class, 'batchReprint']);
             Route::post('student-cards/{id}/reprint', [CardsController::class, 'reprint'])->whereNumber('id');
         });
+
+        // Export endpoints — <10s sync for ≤5K records (R5), async fallback for larger sets
+        Route::get('exports/students',         [ExportController::class, 'students'])->middleware('permission:students.view');
+        Route::get('exports/students/excel',   [ExportController::class, 'studentsExcel'])->middleware('permission:students.view');
+        Route::get('exports/students/pdf',     [ExportController::class, 'studentsPdf'])->middleware('permission:students.view');
+        Route::get('exports/download/{exportId}', [ExportController::class, 'download'])->middleware('permission:students.view');
+        Route::get('exports/status/{exportId}',   [ExportController::class, 'status'])->middleware('permission:students.view');
 
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);
         Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
