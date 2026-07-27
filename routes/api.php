@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Role\RoleController;
 use App\Http\Controllers\Api\V1\Record\RecordAttachmentController;
 use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
 use App\Http\Controllers\Api\V1\CardsController;
+use App\Http\Controllers\Api\V1\EvaluationController;
 use App\Http\Controllers\Api\V1\Student\StudentRecordController;
 use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
@@ -131,6 +132,49 @@ Route::prefix('v1')->group(function () {
             Route::post('selection-batches', [SelectionBatchController::class, 'store']);
             Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
             Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
+        });
+
+
+        Route::prefix('evaluation-templates')->group(function () {
+            Route::get('/', [EvaluationController::class, 'index'])
+                ->middleware('permission:evaluation.view');
+            Route::post('/', [EvaluationController::class, 'storeTemplate'])
+                ->middleware('permission:evaluation.manage');
+            Route::get('{id}', [EvaluationController::class, 'show'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.view');
+            Route::put('{id}', [EvaluationController::class, 'updateTemplate'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+            Route::delete('{id}',[EvaluationController::class, 'destroyTemplate'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+
+            Route::post('{templateId}/categories', [EvaluationController::class, 'storeCategory'])
+                ->whereNumber('templateId')
+                ->middleware('permission:evaluation.manage');
+        });
+
+        Route::prefix('evaluation-categories')->group(function () {
+            Route::put('{id}',          [EvaluationController::class, 'updateCategory'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+            Route::delete('{id}',       [EvaluationController::class, 'destroyCategory'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+
+            Route::post('{categoryId}/questions', [EvaluationController::class, 'storeQuestion'])
+                ->whereNumber('categoryId')
+                ->middleware('permission:evaluation.manage');
+        });
+
+        Route::prefix('evaluation-questions')->group(function () {
+            Route::put('{id}', [EvaluationController::class, 'updateQuestion'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+            Route::delete('{id}', [EvaluationController::class, 'destroyQuestion'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
         });
 
         Route::get('students/{student}/attachments', [RecordAttachmentController::class, 'indexByStudent'])
