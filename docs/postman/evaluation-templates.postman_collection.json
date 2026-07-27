@@ -1,0 +1,557 @@
+{
+	"info": {
+		"_postman_id": "evaluation-templates-2026-07-26",
+		"name": "PNC Education - Evaluation Templates API",
+		"description": "Complete CRUD API for the Self-Evaluation module (EPIC E8).\n\n## Setup\n1. Set `base_url` collection variable to your API base URL (e.g. `http://localhost:8000`)\n2. Run **Login** request first to auto-set the `token` variable\n3. All subsequent requests use the token automatically via the `Authorization` header",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "template_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "category_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "question_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Login (auto-set token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@pnc.edu.kh\",\n  \"password\": \"password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📋 Evaluation Templates",
+			"item": [
+				{
+					"name": "1. List All Templates",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates"]
+						}
+					},
+					"response": [
+						{
+							"name": "Success - Empty List",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n  \"status\": \"success\",\n  \"message\": \"Evaluation templates retrieved successfully\",\n  \"data\": []\n}"
+						},
+						{
+							"name": "Success - With Data",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n  \"status\": \"success\",\n  \"message\": \"Evaluation templates retrieved successfully\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"name\": \"Young Stars Self-Assessment\",\n      \"description\": \"Standard self-evaluation\",\n      \"is_active\": true,\n      \"categories\": [\n        {\n          \"id\": 1,\n          \"name\": \"Communication\",\n          \"sort_order\": 1,\n          \"questions\": [\n            {\n              \"id\": 1,\n              \"question\": \"I communicate clearly\",\n              \"max_score\": 5.0,\n              \"sort_order\": 1\n            }\n          ]\n        }\n      ],\n      \"created_at\": \"2026-07-26T04:25:49.000000Z\",\n      \"updated_at\": \"2026-07-26T04:25:49.000000Z\"\n    }\n  ]\n}"
+						}
+					]
+				},
+				{
+					"name": "2. Create Template",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Young Stars Self-Assessment\",\n  \"description\": \"Standard self-evaluation based on the UK Young Stars model.\",\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.id) {",
+									"    pm.collectionVariables.set('template_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "3. Get Template by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates/{{template_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates", "{{template_id}}"]
+						}
+					}
+				},
+				{
+					"name": "4. Update Template",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Assessment Name\",\n  \"description\": \"Updated description\",\n  \"is_active\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates/{{template_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates", "{{template_id}}"]
+						}
+					}
+				},
+				{
+					"name": "5. Update Template - Clear Description",
+					"request": {
+						"description": "Send `description` as null to clear the field.",
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates/{{template_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates", "{{template_id}}"]
+						}
+					}
+				},
+				{
+					"name": "6. Delete Template",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates/{{template_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates", "{{template_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📂 Evaluation Categories",
+			"item": [
+				{
+					"name": "7. Create Category in Template",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Communication\",\n  \"sort_order\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates/{{template_id}}/categories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates", "{{template_id}}", "categories"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.id) {",
+									"    pm.collectionVariables.set('category_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "8. Update Category",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Category Name\",\n  \"sort_order\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-categories", "{{category_id}}"]
+						}
+					}
+				},
+				{
+					"name": "9. Delete Category (cascades questions)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-categories", "{{category_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "❓ Evaluation Questions",
+			"item": [
+				{
+					"name": "10. Create Question in Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"question_text\": \"I express my ideas clearly in meetings and conversations.\",\n  \"score\": 5,\n  \"sort_order\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-categories/{{category_id}}/questions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-categories", "{{category_id}}", "questions"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.id) {",
+									"    pm.collectionVariables.set('question_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "11. Update Question",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"question_text\": \"Updated: I lead by example and inspire others.\",\n  \"score\": 10,\n  \"sort_order\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-questions/{{question_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-questions", "{{question_id}}"]
+						}
+					}
+				},
+				{
+					"name": "12. Delete Question",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-questions/{{question_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-questions", "{{question_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🔄 Full CRUD Lifecycle",
+			"item": [
+				{
+					"name": "Full Lifecycle Test",
+					"request": {
+						"description": "Executes the complete CRUD lifecycle to verify the full workflow:\n1. Create template\n2. Create 2 categories\n3. Create questions in each category\n4. Verify the nested structure via GET\n5. Update a question\n6. Update a category\n7. Delete a question\n8. Delete a category\n9. Delete the template",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Lifecycle Test Template\",\n  \"description\": \"Testing full CRUD workflow\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "⚠️ Error Scenarios",
+			"item": [
+				{
+					"name": "Get Template - 404 Not Found",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates/99999",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates", "99999"]
+						}
+					},
+					"response": [
+						{
+							"name": "404 Response",
+							"status": "Not Found",
+							"code": 404,
+							"body": "{\n  \"status\": \"error\",\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Evaluation template not found\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Create Template - 422 Validation Error",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates"]
+						}
+					},
+					"response": [
+						{
+							"name": "422 Response",
+							"status": "Unprocessable Entity",
+							"code": 422,
+							"body": "{\n  \"status\": \"error\",\n  \"error\": {\n    \"code\": 422,\n    \"errors\": {\n      \"name\": [\"The name field is required.\"]\n    }\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Unauthenticated - 401",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-templates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-templates"]
+						}
+					},
+					"response": [
+						{
+							"name": "401 Response",
+							"status": "Unauthorized",
+							"code": 401,
+							"body": "{\n  \"message\": \"Unauthenticated.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Create Question - 422 Missing Fields",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/evaluation-categories/{{category_id}}/questions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "evaluation-categories", "{{category_id}}", "questions"]
+						}
+					},
+					"response": [
+						{
+							"name": "422 Response",
+							"status": "Unprocessable Entity",
+							"code": 422,
+							"body": "{\n  \"status\": \"error\",\n  \"error\": {\n    \"code\": 422,\n    \"errors\": {\n      \"question_text\": [\"The question text field is required.\"],\n      \"score\": [\"The score field is required.\"]\n    }\n  }\n}"
+						}
+					]
+				}
+			]
+		}
+	]
+}

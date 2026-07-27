@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('evaluation_question', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('template_id')->constrained('card_templates')->cascadeOnDelete();
+            $table->foreignId('template_id')->constrained('evaluation_forms')->cascadeOnDelete();
             $table->foreignId('category_id')->constrained('evaluation_categories')->cascadeOnDelete();
             $table->text('question_text');
             $table->decimal('score', 5, 2);

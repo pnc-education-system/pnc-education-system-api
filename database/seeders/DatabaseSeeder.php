@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             SettingSeeder::class,
             SelectionBatchSeeder::class,
+            EvaluationTemplateSeeder::class,
         ]);
     }
 }
