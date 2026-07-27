@@ -13,7 +13,9 @@ use App\Http\Requests\BulkConfirmStudentsRequest;
 use App\Http\Requests\BulkUpdateStudentStatusRequest;
 use App\Http\Requests\StoreStudentPhotoRequest;
 use App\Http\Resources\StudentResource;
+use App\Http\Resources\EvaluationHistoryResource;
 use App\Models\Student;
+use App\Models\Evaluation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -455,5 +457,146 @@ class StudentController extends Controller
             'Expires' => '0',
             'Access-Control-Allow-Origin' => '*',
         ]);
+    }
+
+    /**
+     * Get evaluation history with period-over-period comparison
+     * 
+     * @param int $id Student ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function evaluationHistory($id)
+    {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return $this->error('Student not found', 404);
+        }
+
+        $evaluations = Evaluation::where('student_id', $id)
+            ->with(['answers.question.category', 'reviewer', 'evaluationForm'])
+            ->orderBy('submitted_at', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Calculate period-over-period comparisons (oldest to newest)
+        $previousEvaluation = null;
+        $evaluationsData = [];
+
+        foreach ($evaluations as $index => $evaluation) {
+            $periodOverPeriod = null;
+
+            if ($previousEvaluation) {
+                $previousScore = (float) $previousEvaluation->total_score;
+                $currentScore = (float) $evaluation->total_score;
+                $change = $currentScore - $previousScore;
+                $changePercent = $previousScore > 0 
+                    ? round(($change / $previousScore) * 100, 2) 
+                    : 0;
+
+                $periodOverPeriod = [
+                    'previous_total' => $previousScore,
+                    'change' => $change >= 0 ? "+{$change}" : (string) $change,
+                    'change_percent' => $changePercent >= 0 ? "+{$changePercent}%" : "{$changePercent}%",
+                ];
+            }
+
+            $evaluationsData[] = [
+                'evaluation' => $evaluation,
+                'period_over_period' => $periodOverPeriod,
+            ];
+            
+            $previousEvaluation = $evaluation;
+        }
+
+        // Reverse to show newest first in API response
+        $evaluationsData = array_reverse($evaluationsData);
+
+        // Calculate trend summary
+        $trendSummary = $this->calculateTrendSummary($evaluations);
+
+        // Build response with period_over_period included
+        $evaluationsResponse = collect($evaluationsData)->map(function ($item) {
+            $evaluation = $item['evaluation'];
+            return [
+                'id' => $evaluation->id,
+                'student_id' => $evaluation->student_id,
+                'evaluation_form_id' => $evaluation->evaluation_form_id,
+                'evaluation_period' => $evaluation->evaluation_period,
+                'total_score' => (float) $evaluation->total_score,
+                'status' => $evaluation->status,
+                'submitted_at' => $evaluation->submitted_at?->format('Y-m-d H:i:s'),
+                'reviewed_by' => $evaluation->reviewed_by,
+                'reviewer_name' => $evaluation->reviewer?->name,
+                'evaluation_form' => [
+                    'id' => $evaluation->evaluationForm->id,
+                    'name' => $evaluation->evaluationForm->name,
+                ],
+                'period_over_period' => $item['period_over_period'],
+                'created_at' => $evaluation->created_at?->format('Y-m-d H:i:s'),
+                'updated_at' => $evaluation->updated_at?->format('Y-m-d H:i:s'),
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Evaluation history retrieved successfully',
+            'data' => [
+                'student_id' => $student->id,
+                'student_name' => $student->full_name,
+                'evaluations' => $evaluationsResponse,
+                'trend_summary' => $trendSummary,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Calculate trend summary statistics
+     */
+    private function calculateTrendSummary($evaluations): array
+    {
+        if ($evaluations->isEmpty()) {
+            return [
+                'average_score' => 0,
+                'improvement_rate' => '0%',
+                'best_period' => null,
+                'total_evaluations' => 0,
+            ];
+        }
+
+        $totalScore = 0;
+        $bestScore = 0;
+        $bestPeriod = null;
+
+        foreach ($evaluations as $evaluation) {
+            $score = (float) $evaluation->total_score;
+            $totalScore += $score;
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestPeriod = $evaluation->evaluation_period;
+            }
+        }
+
+        $averageScore = round($totalScore / $evaluations->count(), 2);
+        
+        // Calculate improvement rate (oldest vs newest)
+        $improvementRate = '0%';
+        if ($evaluations->count() > 1) {
+            // Since evaluations are ordered ASC (oldest first), first() is oldest, last() is newest
+            $oldestScore = (float) $evaluations->first()->total_score;
+            $newestScore = (float) $evaluations->last()->total_score;
+            $change = $newestScore - $oldestScore;
+            $rate = $oldestScore > 0 ? round(($change / $oldestScore) * 100, 2) : 0;
+            $improvementRate = $rate >= 0 ? "+{$rate}%" : "{$rate}%";
+        }
+
+        return [
+            'average_score' => $averageScore,
+            'improvement_rate' => $improvementRate,
+            'best_period' => $bestPeriod,
+            'best_score' => $bestScore,
+            'total_evaluations' => $evaluations->count(),
+        ];
     }
 }
