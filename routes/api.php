@@ -97,6 +97,11 @@ Route::prefix('v1')->group(function () {
             Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
         });
 
+        Route::middleware('permission:evaluation.view')->group(function () {
+            Route::get('students/{id}/evaluations', [\App\Http\Controllers\Api\V1\Evaluation\StudentEvaluationController::class, 'index'])
+                ->whereNumber('id');
+        });
+
         Route::middleware('permission:evaluation.submit')->group(function () {
             Route::post('students/{id}/evaluations', [\App\Http\Controllers\Api\V1\Evaluation\StudentEvaluationController::class, 'store'])
                 ->whereNumber('id');

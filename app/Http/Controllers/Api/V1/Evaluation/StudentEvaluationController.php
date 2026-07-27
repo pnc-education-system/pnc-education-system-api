@@ -14,6 +14,82 @@ use Illuminate\Support\Facades\DB;
 class StudentEvaluationController extends Controller
 {
     use ApiResponse;
+    /**
+     * Get all evaluations for a student.
+     */
+    public function index(int $id)
+    {
+        $student = Student::find($id);
+        if (!$student) {
+            return $this->error('Student not found', 404);
+        }
+
+        $evaluations = Evaluation::with(['answers.question.category'])
+            ->where('student_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $formIds = $evaluations->pluck('evaluation_form_id')->unique();
+        $forms = EvaluationForm::with(['categories' => function ($q) {
+            $q->orderBy('sort_order');
+        }, 'categories.questions' => function ($q) {
+            $q->orderBy('sort_order');
+        }])->whereIn('id', $formIds)->get()->keyBy('id');
+
+        $data = $evaluations->map(function ($evaluation) use ($forms) {
+            $form = $forms->get($evaluation->evaluation_form_id);
+
+            $categoryScores = [];
+            if ($form) {
+                $answersByQuestion = $evaluation->answers->keyBy('question_id');
+                foreach ($form->categories as $category) {
+                    $total = 0;
+                    $questions = [];
+                    foreach ($category->questions as $question) {
+                        $answer = $answersByQuestion->get($question->id);
+                        $score = $answer ? (float) $answer->score : 0;
+                        $total += $score;
+                        $questions[] = [
+                            'question_id'   => $question->id,
+                            'question_text' => $question->question_text,
+                            'score'         => $score,
+                            'max_score'     => (float) $question->score,
+                        ];
+                    }
+                    $categoryScores[] = [
+                        'category_id'   => $category->id,
+                        'category_name' => $category->name,
+                        'total_score'   => $total,
+                        'questions'     => $questions,
+                    ];
+                }
+            }
+
+            return [
+                'id'                 => $evaluation->id,
+                'student_id'         => $evaluation->student_id,
+                'evaluation_form_id' => $evaluation->evaluation_form_id,
+                'evaluation_period'  => $evaluation->evaluation_period,
+                'total_score'        => (float) $evaluation->total_score,
+                'status'             => $evaluation->status,
+                'submitted_at'       => $evaluation->submitted_at?->toIso8601String(),
+                'category_scores'    => $categoryScores,
+                'answers'            => $evaluation->answers->map(fn ($a) => [
+                    'id'          => $a->id,
+                    'question_id' => $a->question_id,
+                    'score'       => (float) $a->score,
+                    'comment'     => $a->comment,
+                ]),
+            ];
+        });
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Evaluations retrieved successfully',
+            'data'    => $data,
+        ]);
+    }
+
     public function store(StoreStudentEvaluationRequest $request, int $id)
     {
         $student = Student::find($id);
