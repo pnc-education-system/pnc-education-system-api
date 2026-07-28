@@ -143,6 +143,14 @@ Route::prefix('v1')->group(function () {
         Route::get('exports/download/{exportId}', [ExportController::class, 'download'])->middleware('permission:students.view');
         Route::get('exports/status/{exportId}',   [ExportController::class, 'status'])->middleware('permission:students.view');
 
+        // Evaluation-specific report exports
+        Route::middleware('permission:evaluation.view')->group(function () {
+            Route::get('exports/evaluations/individual/{studentId}', [\App\Http\Controllers\Api\V1\Evaluation\EvaluationReportController::class, 'individual'])
+                ->whereNumber('studentId');
+            Route::get('exports/evaluations/batch',   [\App\Http\Controllers\Api\V1\Evaluation\EvaluationReportController::class, 'batch']);
+            Route::get('exports/evaluations/trend',   [\App\Http\Controllers\Api\V1\Evaluation\EvaluationReportController::class, 'trend']);
+        });
+
         Route::get('selection-batches', [SelectionBatchController::class, 'index']);
         Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
 
