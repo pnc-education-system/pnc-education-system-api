@@ -161,7 +161,7 @@ class ImportValidationService
             'student_id_no' => ['nullable', 'string', 'max:50', new StudentIdFormat()],
             'full_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'in:Male,Female,Other'],
-            'dob' => ['nullable', 'date', 'before:today'],
+            'dob' => ['required', 'date', 'before:today'],
             'phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
             'province' => ['nullable', 'string', 'max:100'],

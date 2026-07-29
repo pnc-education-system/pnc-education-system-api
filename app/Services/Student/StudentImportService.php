@@ -221,28 +221,35 @@ class StudentImportService
 
         foreach ($chunks as $chunkIndex => $chunk) {
             try {
-                DB::transaction(function () use ($chunk, &$totalSuccess, $userId, $selectionBatchId) {
+                DB::transaction(function () use ($chunk, &$totalSuccess, $userId, $selectionBatchId, $batchYear) {
                     $insertData = [];
                     foreach ($chunk as $row) {
-                    $enrollmentStatus = !empty($row['enrollment_status']) ? $row['enrollment_status'] : 'Pending';
+                        $enrollmentStatus = !empty($row['enrollment_status']) ? $row['enrollment_status'] : 'Pending';
 
-                    $insertData[] = [
-                        'student_id_no'      => $row['student_id_no'],
-                        'full_name'          => $row['full_name'],
-                        'gender'             => $row['gender'],
-                        'dob'                => $row['dob'],
-                        'phone'              => $row['phone'] ?? null,
-                        'email'              => $row['email'] ?? null,
-                        'province'           => $row['province'] ?? null,
-                        'high_school'        => $row['high_school'] ?? '',
-                        'selection_batch_id' => $selectionBatchId ?? $row['selection_batch_id'] ?? null,
-                        'enrollment_status'  => $enrollmentStatus,
-                        'intake_year'        => $batchYear ?? $row['intake_year'],
-                        'enrolled_at'        => $enrollmentStatus === 'Enrolled' ? now() : null,
-                        'created_by'         => $userId,
-                        'created_at'         => now(),
-                        'updated_at'         => now(),
-                    ];
+                        // Guard: dob is required by the database (NOT NULL column) — fail early with a clear message
+                        if (empty($row['dob'])) {
+                            throw new \InvalidArgumentException(
+                                'Date of birth is required for student "' . ($row['student_id_no'] ?? 'N/A') . '".'
+                            );
+                        }
+
+                        $insertData[] = [
+                            'student_id_no'      => $row['student_id_no'],
+                            'full_name'          => $row['full_name'],
+                            'gender'             => $row['gender'],
+                            'dob'                => $row['dob'],
+                            'phone'              => $row['phone'] ?? null,
+                            'email'              => $row['email'] ?? null,
+                            'province'           => $row['province'] ?? null,
+                            'high_school'        => $row['high_school'] ?? '',
+                            'selection_batch_id' => $selectionBatchId ?? $row['selection_batch_id'] ?? null,
+                            'enrollment_status'  => $enrollmentStatus,
+                            'intake_year'        => $batchYear ?? $row['intake_year'],
+                            'enrolled_at'        => $enrollmentStatus === 'Enrolled' ? now() : null,
+                            'created_by'         => $userId,
+                            'created_at'         => now(),
+                            'updated_at'         => now(),
+                        ];
                     }
                     Student::insert($insertData);
                     $totalSuccess += count($insertData);
@@ -307,12 +314,19 @@ class StudentImportService
         $totalSuccess = 0;
         $totalFailed = 0;
 
-        foreach($chunks as $chunkIndex => $chunk){
-            try{
+        foreach ($chunks as $chunkIndex => $chunk) {
+            try {
                 DB::transaction(function () use ($chunk, &$totalSuccess, $userId) {
                     $insertData = [];
                     foreach ($chunk as $row) {
                         $enrollmentStatus = !empty($row['enrollment_status']) ? $row['enrollment_status'] : 'Pending';
+
+                        // Guard: dob is required by the database (NOT NULL column) — fail early with a clear message
+                        if (empty($row['dob'])) {
+                            throw new \InvalidArgumentException(
+                                'Date of birth is required for student "' . ($row['student_id_no'] ?? 'N/A') . '".'
+                            );
+                        }
 
                         $insertData[] = [
                             'student_id_no'      => $row['student_id_no'],
@@ -335,7 +349,7 @@ class StudentImportService
                     Student::insert($insertData);
                     $totalSuccess += count($insertData);
                 });
-            }catch(\Exception $e){
+            } catch (\Exception $e) {
                 $totalFailed += count($chunk);
 
                 // Record each failed row as an ImportError for visibility
@@ -360,16 +374,16 @@ class StudentImportService
             }
         }
         $importLog->update([
-            'success_count' =>$totalSuccess,
-            'error_count'=>$totalFailed,
+            'success_count' => $totalSuccess,
+            'error_count' => $totalFailed,
             'status' => 'Completed',
         ]);
-        return[
-            'import_log_id'=>$importLog->id,
-            'total_rows'=>count($rows),
-            'imported'=>$totalSuccess,
-            'failed'=>$totalFailed,
-            'chunks'=>count($chunks)
+        return [
+            'import_log_id' => $importLog->id,
+            'total_rows' => count($rows),
+            'imported' => $totalSuccess,
+            'failed' => $totalFailed,
+            'chunks' => count($chunks),
         ];
     }
 }
