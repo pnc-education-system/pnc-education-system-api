@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
+
         $middleware->alias([
             'jwt.auth' => \App\Http\Middleware\JwtAuthenticate::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
@@ -22,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('api', [\App\Http\Middleware\ApiErrorEnvelopeMiddleware::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->shouldRenderJsonWhen(function ($request) {
+            return $request->is('api/*') || $request->expectsJson();
+        });
     })
     ->create();

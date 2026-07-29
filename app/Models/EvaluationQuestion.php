@@ -14,14 +14,14 @@ class EvaluationQuestion extends Model
         'template_id',
         'category_id',
         'question_text',
-        'max_score',
+        'score',
         'sort_order',
     ];
 
     protected function casts(): array
     {
         return [
-            'max_score'  => 'decimal:2',
+            'score'      => 'decimal:2',
             'sort_order' => 'integer',
         ];
     }

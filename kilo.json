@@ -1,0 +1,16 @@
+{
+  "model": "openai/gpt-4o",
+  "small_model": "openai/gpt-4o-mini",
+  "default_agent": "code",
+  "permission": {
+    "bash": "allow",
+    "edit": {
+      "**": "allow"
+    },
+    "read": "allow",
+    "skill": {
+      "kilo-config": "allow"
+    },
+    "external_directory": "deny"
+  }
+}

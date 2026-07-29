@@ -26,11 +26,13 @@ class ApiErrorEnvelopeMiddleware
         $isErrorStatus = in_array($statusCode, [400, 401, 403, 404, 422, 500], true);
 
         if ($isErrorStatus) {
-            $message = null;
-
+            // Already in envelope format — pass through
             if (isset($payload['error']['message'])) {
                 return $response;
             }
+
+            $message = null;
+            $errors = [];
 
             if (isset($payload['message']) && is_string($payload['message'])) {
                 $message = $payload['message'];
@@ -38,21 +40,34 @@ class ApiErrorEnvelopeMiddleware
                 $message = $payload['message'];
             }
 
+            // Preserve field-level validation errors (422 responses)
+            if (isset($payload['errors']) && is_array($payload['errors'])) {
+                $errors = $payload['errors'];
+            }
+
             if (!is_string($message) || $message === '') {
                 $message = Response::$statusTexts[$statusCode] ?? 'Request failed';
             }
 
-            $response->setContent(json_encode([
+            $envelope = [
                 'error' => [
                     'code' => $statusCode,
                     'message' => $message,
                 ],
-            ], JSON_UNESCAPED_SLASHES));
+            ];
 
-            $response->headers->set('Content-Type', 'application/json');
+            // Include field-level errors when present (gives frontend specific feedback like "File too large")
+            if (!empty($errors)) {
+                $envelope['error']['errors'] = $errors;
+            }
+
+            $response->setContent(json_encode($envelope, JSON_UNESCAPED_SLASHES));
+
+            if (!$response->headers->has('Content-Type')) {
+                $response->headers->set('Content-Type', 'application/json');
+            }
         }
 
         return $response;
     }
 }
-

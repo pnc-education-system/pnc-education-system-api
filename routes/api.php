@@ -1,19 +1,40 @@
 <?php
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\UserController;
-use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\User\UserController;
+use App\Http\Controllers\Api\V1\Student\StudentController;
+use App\Http\Controllers\Api\V1\Student\StudentCardController;
+use App\Http\Controllers\Api\V1\ImportController;
+use App\Http\Controllers\Api\V1\Role\RoleController;
+use App\Http\Controllers\Api\V1\Record\RecordAttachmentController;
+use App\Http\Controllers\Api\V1\SelectionBatch\SelectionBatchController;
+use App\Http\Controllers\Api\V1\CardsController;
+use App\Http\Controllers\Api\V1\EvaluationController;
+use App\Http\Controllers\Api\V1\Student\StudentRecordController;
+use App\Http\Controllers\Api\V1\ExportController;
+use App\Http\Controllers\DashboardController;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+        Route::post('refresh', [AuthController::class, 'refresh']);
         Route::post('password/reset', [AuthController::class, 'requestReset'])->middleware('throttle:3,1');
         Route::post('password/reset/confirm', [AuthController::class, 'confirmReset'])->middleware('throttle:3,1');
     });
+
+    Route::get('/student-cards/qr/{qr_token}', [StudentCardController::class, 'resolveQr']);
+    Route::get('/student-cards/student/{student_id_no}', [StudentCardController::class, 'resolveByStudentId']);
+    Route::get('/cards/verify/{qrToken}', [StudentCardController::class, 'verify']);
+    Route::get('/students/verify/{studentId}', [StudentCardController::class, 'verifyById'])->whereNumber('studentId');
+
+    Route::get('photos/{studentId}', [StudentController::class, 'servePhoto'])->whereNumber('studentId');
+
     Route::middleware('jwt.auth')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
-        Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::get('dashboard/enrollment', [DashboardController::class, 'enrollmentStats']);
+
+        Route::post('/student-cards', [StudentCardController::class, 'store']);
 
         Route::middleware('permission:users.manage')->group(function () {
             Route::apiResource('users', UserController::class);
@@ -26,6 +47,175 @@ Route::prefix('v1')->group(function () {
             Route::put('roles/{id}', [RoleController::class, 'update']);
             Route::delete('roles/{id}', [RoleController::class, 'destroy']);
             Route::get('permissions', [RoleController::class, 'permissions']);
+        });
+
+        Route::middleware('permission:students.import')->group(function () {
+            Route::post('imports',              [ImportController::class, 'upload']);
+            Route::get('imports',               [ImportController::class, 'index']);
+            Route::get('imports/{import}',      [ImportController::class, 'show']);
+            Route::post('imports/{import}/commit', [ImportController::class, 'commit']);
+            Route::get('imports/{import}/errors',  [ImportController::class, 'errors']);
+        });
+
+        Route::middleware('permission:students.view')->group(function () {
+            Route::get('students', [StudentController::class, 'index']);
+        });
+        Route::get('dashboard/aggregates', [\App\Http\Controllers\Api\V1\DashboardController::class, 'aggregates'])
+            ->middleware('permission:students.view,records.view,evaluation.view');
+        Route::get('students/{id}', [StudentController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view,students.edit,enrollment.manage');
+
+        Route::get('students/{id}/evaluations/history', [StudentController::class, 'evaluationHistory'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view,students.edit,enrollment.manage');
+
+        Route::middleware('permission:students.edit')->group(function () {
+            Route::post('students', [StudentController::class, 'store']);
+            Route::post('students/bulk-status', [StudentController::class, 'bulkUpdateStatus']);
+            Route::post('students/bulk-confirm', [StudentController::class, 'bulkConfirm']);
+            Route::put('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
+            Route::post('students/{id}', [StudentController::class, 'update'])->whereNumber('id');
+            Route::post('students/{id}/photo', [StudentController::class, 'uploadPhoto'])->whereNumber('id');
+        });
+        Route::post('students/{id}/card', [StudentCardController::class, 'generateCard'])
+            ->whereNumber('id')
+            ->middleware('permission:students.view,students.edit,enrollment.manage');
+
+        Route::get('students/{student}/records', [StudentRecordController::class, 'index'])
+            ->whereNumber('student')
+            ->middleware('permission:records.view,records.manage');
+        Route::get('students/{student}/records/{record}', [StudentRecordController::class, 'show'])
+            ->whereNumber('student')
+            ->whereNumber('record')
+            ->middleware('permission:records.view,records.manage');
+
+        Route::middleware('permission:records.manage')->group(function () {
+            Route::post('students/{student}/records', [StudentRecordController::class, 'store'])->whereNumber('student');
+            Route::put('students/{student}/records/{record}', [StudentRecordController::class, 'update'])
+                ->whereNumber('student')
+                ->whereNumber('record');
+            Route::delete('students/{student}/records/{record}', [StudentRecordController::class, 'destroy'])
+                ->whereNumber('student')
+                ->whereNumber('record');
+        });
+
+        Route::middleware('permission:enrollment.manage')->group(function () {
+            Route::patch('students/{id}/status', [StudentController::class, 'updateStatus']);
+        });
+
+        Route::middleware('permission:evaluation.view')->group(function () {
+            Route::get('students/{id}/evaluations', [\App\Http\Controllers\Api\V1\Evaluation\StudentEvaluationController::class, 'index'])
+                ->whereNumber('id');
+        });
+
+        Route::middleware('permission:evaluation.submit')->group(function () {
+            Route::post('students/{id}/evaluations', [\App\Http\Controllers\Api\V1\Evaluation\StudentEvaluationController::class, 'store'])
+                ->whereNumber('id');
+        });
+        Route::prefix('cards')->group(function () {
+            Route::get('templates', [CardsController::class, 'templates']);
+            Route::get('templates/{id}', [CardsController::class, 'showTemplate'])->whereNumber('id');
+            Route::get('stats', [CardsController::class, 'stats']);
+            Route::get('students-by-batch', [CardsController::class, 'studentsByBatch']);
+            Route::post('batch', [CardsController::class, 'batch']);
+            Route::post('generate/{studentId}', [CardsController::class, 'generate'])->whereNumber('studentId');
+            Route::match(['get', 'post'], 'download/{studentId}', [CardsController::class, 'download'])->whereNumber('studentId');
+            Route::get('download/batch/{batchId}', [CardsController::class, 'downloadByBatch'])->whereNumber('batchId');
+            Route::post('batch-download', [CardsController::class, 'batchDownload']);
+        });
+
+        Route::middleware('permission:cards.generate')->group(function () {
+            Route::post('cards/templates', [CardsController::class, 'storeTemplate']);
+            Route::put('cards/templates/{id}', [CardsController::class, 'updateTemplate'])->whereNumber('id');
+            Route::delete('cards/templates/{id}', [CardsController::class, 'destroyTemplate'])->whereNumber('id');
+        });
+
+        Route::middleware('permission:cards.generate')->group(function () {
+            Route::post('cards/reprint', [CardsController::class, 'batchReprint']);
+            Route::post('student-cards/{id}/reprint', [CardsController::class, 'reprint'])->whereNumber('id');
+        });
+
+        // Export endpoints — <10s sync for ≤5K records (R5), async fallback for larger sets
+        Route::get('exports/students',         [ExportController::class, 'students'])->middleware('permission:students.view');
+        Route::get('exports/students/excel',   [ExportController::class, 'studentsExcel'])->middleware('permission:students.view');
+        Route::get('exports/students/pdf',     [ExportController::class, 'studentsPdf'])->middleware('permission:students.view');
+        Route::get('exports/download/{exportId}', [ExportController::class, 'download'])->middleware('permission:students.view');
+        Route::get('exports/status/{exportId}',   [ExportController::class, 'status'])->middleware('permission:students.view');
+
+        // Evaluation-specific report exports
+        Route::middleware('permission:evaluation.view')->group(function () {
+            Route::get('exports/evaluations/individual/{studentId}', [\App\Http\Controllers\Api\V1\Evaluation\EvaluationReportController::class, 'individual'])
+                ->whereNumber('studentId');
+            Route::get('exports/evaluations/batch',   [\App\Http\Controllers\Api\V1\Evaluation\EvaluationReportController::class, 'batch']);
+            Route::get('exports/evaluations/trend',   [\App\Http\Controllers\Api\V1\Evaluation\EvaluationReportController::class, 'trend']);
+        });
+
+        Route::get('selection-batches', [SelectionBatchController::class, 'index']);
+        Route::get('selection-batches/{id}', [SelectionBatchController::class, 'show']);
+
+
+        Route::middleware('permission:batches.manage')->group(function () {
+            Route::post('selection-batches', [SelectionBatchController::class, 'store']);
+            Route::put('selection-batches/{id}', [SelectionBatchController::class, 'update']);
+            Route::delete('selection-batches/{id}', [SelectionBatchController::class, 'destroy']);
+        });
+
+
+        Route::prefix('evaluation-templates')->group(function () {
+            Route::get('/', [EvaluationController::class, 'index'])
+                ->middleware('permission:evaluation.view');
+            Route::post('/', [EvaluationController::class, 'storeTemplate'])
+                ->middleware('permission:evaluation.manage');
+            Route::get('{id}', [EvaluationController::class, 'show'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.view');
+            Route::put('{id}', [EvaluationController::class, 'updateTemplate'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+            Route::delete('{id}',[EvaluationController::class, 'destroyTemplate'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+
+            Route::post('{templateId}/categories', [EvaluationController::class, 'storeCategory'])
+                ->whereNumber('templateId')
+                ->middleware('permission:evaluation.manage');
+        });
+
+        Route::prefix('evaluation-categories')->group(function () {
+            Route::put('{id}',          [EvaluationController::class, 'updateCategory'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+            Route::delete('{id}',       [EvaluationController::class, 'destroyCategory'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+
+            Route::post('{categoryId}/questions', [EvaluationController::class, 'storeQuestion'])
+                ->whereNumber('categoryId')
+                ->middleware('permission:evaluation.manage');
+        });
+
+        Route::prefix('evaluation-questions')->group(function () {
+            Route::put('{id}', [EvaluationController::class, 'updateQuestion'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+            Route::delete('{id}', [EvaluationController::class, 'destroyQuestion'])
+                ->whereNumber('id')
+                ->middleware('permission:evaluation.manage');
+        });
+
+        Route::get('students/{student}/attachments', [RecordAttachmentController::class, 'indexByStudent'])
+            ->whereNumber('student')
+            ->middleware('permission:records.view,records.manage');
+
+        Route::middleware('permission:records.manage')->group(function () {
+            Route::post('records/{record}/attachments', [RecordAttachmentController::class, 'store'])
+                ->whereNumber('record');
+            Route::post('students/{student}/attachments', [RecordAttachmentController::class, 'storeForStudent'])
+                ->whereNumber('student');
+            Route::delete('students/{student}/attachments/{attachment}', [RecordAttachmentController::class, 'destroy'])
+                ->whereNumber('student')
+                ->whereNumber('attachment');
         });
     });
 });

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CardTemplate extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'name',
         'layout_json',
@@ -17,6 +20,7 @@ class CardTemplate extends Model
     {
         return [
             'is_default' => 'boolean',
+            'layout_json' => 'array',
         ];
     }
 

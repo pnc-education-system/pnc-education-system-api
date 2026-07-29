@@ -17,8 +17,11 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Manage Settings',      'slug' => 'settings.manage',     'module' => 'admin'],
             // Students
             ['name' => 'View Students',        'slug' => 'students.view',       'module' => 'students'],
+            ['name' => 'Create Students',     'slug' => 'students.create',     'module' => 'students'],
             ['name' => 'Edit Students',        'slug' => 'students.edit',       'module' => 'students'],
             ['name' => 'Import Students',      'slug' => 'students.import',     'module' => 'students'],
+            // Batches
+            ['name' => 'Manage Selection Batches', 'slug' => 'batches.manage',    'module' => 'batches'],
             // Enrollment
             ['name' => 'Manage Enrollment',    'slug' => 'enrollment.manage',   'module' => 'enrollment'],
             // Cards
@@ -59,6 +62,7 @@ class RolePermissionSeeder extends Seeder
 
         $staffPerms = Permission::whereIn('slug', [
             'students.view', 'students.edit', 'students.import',
+            'batches.manage',
             'enrollment.manage', 'cards.generate',
             'records.view', 'records.manage',
             'evaluation.view', 'evaluation.manage', 'evaluation.submit',

@@ -10,10 +10,17 @@ class ImportLog extends Model
 {
     protected $fillable = [
         'file_name',
-        'imported_by',
+        'file_path',
+        'selection_batch_id',
         'total_rows',
-        'success_rows',
-        'failed_rows',
+        'success_count',
+        'error_count',
+        'status',
+        'imported_by',
+    ];
+
+    protected $casts = [
+        'status' => 'string',
     ];
 
     public function importer(): BelongsTo
@@ -24,5 +31,10 @@ class ImportLog extends Model
     public function errors(): HasMany
     {
         return $this->hasMany(ImportError::class);
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(SelectionBatch::class, 'selection_batch_id');
     }
 }

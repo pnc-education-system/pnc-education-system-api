@@ -11,8 +11,15 @@ class EnrollmentStatusHistory extends Model
         'student_id',
         'old_status',
         'new_status',
+        'graduated_status',
+        'note',
         'changed_by',
-        'remarks',
+    ];
+
+    public $timestamps = false;
+
+    protected $casts = [
+        'created_at' => 'datetime',
     ];
 
     public function student(): BelongsTo
